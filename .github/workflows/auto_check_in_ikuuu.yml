@@ -36,5 +36,8 @@ jobs:
       - name: Run sign
         env:
           ACCOUNTS: ${{secrets.ACCOUNTS }}
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
+          MAIL_TO:   ${{ secrets.MAIL_TO }}
         run: |
           python3 ./auto_check_in_ikuuu.py
