@@ -40,7 +40,7 @@ for path in POSSIBLE_PATHS:
 try:
     from notify import send
 except ImportError:
-    print("⚠️ 无法加载通知模块，请检查路径配置")
+    #print("⚠️ 无法加载通知模块，请检查路径配置")
     send = lambda title, content: None  # 创建空函数防止报错
 
 # 初始域名
