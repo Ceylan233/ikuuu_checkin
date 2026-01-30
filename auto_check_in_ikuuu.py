@@ -45,7 +45,7 @@ except ImportError:
 
 # 初始域名
 ikun_host = "ikuuu.de"  # 自动更新于2025-07-25 09:56:36
-backup_hosts = ["ikuuu.one", "ikuuu.pw", "ikuuu.me"]  # 备用域名列表
+backup_hosts = ["ikuuu.one", "ikuuu.nl", "ikuuu.fyi"]  # 备用域名列表
 
 # 统一的User-Agent
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
