@@ -61,3 +61,11 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 ## 3. 到Actions中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/> 
 ---
 ## 4. 最后，可以到Run sign查看签到情况，同时也会也会将签到详情推送。
+
+## 运行截图
+
+未添加过验证api：
+![微信图片编辑_20260407135738](https://github.com/user-attachments/assets/9103aa0a-d4e9-4f60-9244-0d615386c0d8)
+
+添加过验证api：
+![微信图片编辑_20260407135909](https://github.com/user-attachments/assets/c85ad84a-742b-4fb3-a60d-502c20935ced)
