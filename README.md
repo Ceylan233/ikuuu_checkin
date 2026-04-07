@@ -50,7 +50,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 ---
 **ACCOUNTS 写法：**  
-账号:密码（使用冒号`:`分隔），有多个账户则配置多行`换行`
+账号:密码（使用冒号`:`分隔），有多个账户则配置多行`回车换行`
 
 **MAIL_TO：**  
 有多个接收通知的账户用逗号 `,` 分割  
