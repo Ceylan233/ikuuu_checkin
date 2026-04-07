@@ -29,7 +29,7 @@ Settings → Secrets and variables → Actions
 
 | 参数 | 是否必须 | 说明 |
 |------|----------|------|
-| ACCOUNTS | ⚠ 必须 | 账号密码 |
+| ACCOUNTS | ⚠ 必须 | ikuuu账号密码 |
 | MAIL_USER | 可选 | 发件邮箱 |
 | MAIL_PASS | 可选 | 邮箱应用密码 |
 | MAIL_TO | 可选 | 收件邮箱 |
