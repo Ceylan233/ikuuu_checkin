@@ -48,6 +48,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 签到价格约为 0.0016 美元/次（单账号），重复签到仍会计费。  
 
+---
 **ACCOUNTS 写法：**  
 账号:密码（使用冒号:分隔），有多个账户则配置多行  
 
