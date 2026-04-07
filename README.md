@@ -33,12 +33,12 @@ Settings → Secrets and variables → Actions
 | MAIL_USER | 可选 | 发件邮箱 |
 | MAIL_PASS | 可选 | 邮箱应用密码 |
 | MAIL_TO | 可选 | 收件邮箱 |
-| IKUUU_CAPTCHA_SOLVER_ENABLED | 可选 | 是否启用验证码 |
-| IKUUU_CAPTCHA_PROVIDER | 可选 | 验证码服务商 |
+| IKUUU_CAPTCHA_SOLVER_ENABLED | 可选 | 是否启用验证码(0/1) |
+| IKUUU_CAPTCHA_PROVIDER | 可选 | 验证码服务商(capsolver/anticaptcha) |
 | IKUUU_CAPSOLVER_API_KEY | 可选 | CapSolver Key |
 | IKUUU_ANTICAPTCHA_API_KEY | 可选 | AntiCaptcha Key |
-| IKUUU_CAPTCHA_TIMEOUT_SECONDS | 可选 | 验证码超时 |
-| IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | 可选 | 轮询间隔 |
+| IKUUU_CAPTCHA_TIMEOUT_SECONDS | 可选 | 验证码超时时间(秒) |
+| IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | 可选 | 轮询间隔(秒) |
 
 ACCOUNTS写法：账号:密码(使用冒号:分隔)，有多个账户则配置多行<br/> 
 MAIL_TO：有多个接收通知的账户用逗号‘,’分割 不需要通知可不填写邮箱相关参数 
