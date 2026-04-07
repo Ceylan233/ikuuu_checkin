@@ -40,7 +40,8 @@ Settings → Secrets and variables → Actions
 | IKUUU_CAPTCHA_TIMEOUT_SECONDS | 可选 | 验证码超时 |
 | IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | 可选 | 轮询间隔 |
 
----
 <b>ACCOUNTS写法：账号:密码(使用冒号:分隔)，有多个账户则配置多行 <b>MAIL_TO：有多个接收通知的账户用逗号‘,’分割 不需要通知可不填写邮箱相关参数 
+---
 ## 3. 到Actions中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/> 
+---
 ## 4. 最后，可以到Run sign查看签到情况，同时也会也会将签到详情推送。
