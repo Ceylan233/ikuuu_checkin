@@ -56,6 +56,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 有多个接收通知的账户用逗号 `,` 分割  
 
 不需要通知可不填写邮箱相关参数
+
 ---
 ## 3. 到Actions中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/> 
 ---
