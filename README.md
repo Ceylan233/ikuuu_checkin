@@ -41,11 +41,22 @@ Settings → Secrets and variables → Actions
 | IKUUU_CAPTCHA_TIMEOUT_SECONDS | 可选 | 验证码超时时间(秒) |
 | IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | 可选 | 轮询间隔(秒) |
 
-推荐使用CapSolver过验证，使用此链接注册后充值可额外获得6%充值额度：https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g<br/>
-平台最低充值6美元。<br/>
-签到价格约为0.0016美元/次(单账号)，重复签到仍会计费。
-ACCOUNTS写法：账号:密码(使用冒号:分隔)，有多个账户则配置多行<br/> 
-MAIL_TO：有多个接收通知的账户用逗号‘,’分割 不需要通知可不填写邮箱相关参数 
+推荐使用 CapSolver 过验证，使用此链接注册后充值可额外获得 6% 充值额度：  
+https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g  
+
+平台最低充值 6 美元。  
+
+签到价格约为 0.0016 美元/次（单账号），重复签到仍会计费。  
+
+---
+
+**ACCOUNTS 写法：**  
+账号:密码（使用冒号:分隔），有多个账户则配置多行  
+
+**MAIL_TO：**  
+有多个接收通知的账户用逗号 `,` 分割  
+
+不需要通知可不填写邮箱相关参数
 ---
 ## 3. 到Actions中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/> 
 ---
