@@ -26,7 +26,9 @@
 Settings → Secrets and variables → Actions
 
 新建以下变量：
-推荐使用CapSolver过验证，使用此链接注册后充值可额外获得6%充值额度：https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
+推荐使用CapSolver过验证，使用此链接注册后充值可额外获得6%充值额度：https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g<br/>
+平台最低充值6美元。<br/>
+签到价格约为0.0016美元/次(单账号)，重复签到仍会计费。
 | 参数 | 是否必须 | 说明 |
 |------|----------|------|
 | ACCOUNTS | ⚠ 必须 | ikuuu账号密码 |
