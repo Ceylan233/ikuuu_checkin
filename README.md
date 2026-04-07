@@ -1,27 +1,49 @@
-# ikuuu机场签到<br/>
+# ikuuu机场签到
+
 ## 作用
->每天进行签到，获取额外的流量奖励
+> 每天进行签到，获取额外的流量奖励
+
+---
 
 ## 推送方式
-  - 🚀🚀auto_check_in_ikuuu.py脚本采用的是青龙面板，outlook邮箱，163邮箱
+- 🚀 auto_check_in_ikuuu.py 支持：
+  - 青龙面板通知
+  - Outlook 邮箱
+  - 163 邮箱
+
+---
 
 # 部署过程
  
-1. 右上角Fork此仓库
-2. 然后到`Settings`→`Secrets and variables`→`Actions` 新建以下机密：<br/>
+## 1. Fork 仓库
+点击右上角 Fork 此仓库
 
-  | 参数   | 是否必须  | 内容  | 
-  | ------------ | ------------ | ------------ |
-  | ACCOUNTS | 是  | 账号密码  |
-  | MAIL_USER | 否  | 发件邮箱账号  |
-  | MAIL_PASS | 否  | 发件邮箱应用密码(非登陆密码)  |
-  | MAIL_TO | 否  | 收件邮箱  |
-  
-  <b>ACCOUNTS写法：账号:密码(使用冒号:分隔)，有多个账户则配置多行
-  
-  <b>MAIL_TO：有多个接收通知的账户用逗号‘,’分割
-  
-  不需要通知可不填写邮箱相关参数
+---
 
-3. 到`Actions`中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/>
-4. 最后，可以到Run sign查看签到情况，同时也会也会将签到详情推送。
+## 2. 配置环境变量
+进入：
+
+Settings → Secrets and variables → Actions
+
+新建以下变量：
+
+| 参数 | 是否必须 | 说明 |
+|------|----------|------|
+| ACCOUNTS | ✅ 必须 | 账号密码 |
+| MAIL_USER | ❌ 可选 | 发件邮箱 |
+| MAIL_PASS | ❌ 可选 | 邮箱应用密码 |
+| MAIL_TO | ❌ 可选 | 收件邮箱 |
+| IKUUU_CAPTCHA_SOLVER_ENABLED | ❌ 可选 | 是否启用验证码 |
+| IKUUU_CAPTCHA_PROVIDER | ❌ 可选 | 验证码服务商 |
+| IKUUU_CAPSOLVER_API_KEY | ❌ 可选 | CapSolver Key |
+| IKUUU_ANTICAPTCHA_API_KEY | ❌ 可选 | AntiCaptcha Key |
+| IKUUU_CAPTCHA_TIMEOUT_SECONDS | ❌ 可选 | 验证码超时 |
+| IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | ❌ 可选 | 轮询间隔 |
+
+---
+
+## 3. ACCOUNTS 写法
+
+```text
+邮箱:密码
+邮箱:密码
