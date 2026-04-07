@@ -35,8 +35,8 @@ Settings → Secrets and variables → Actions
 | MAIL_TO | 可选 | 收件邮箱 |
 | IKUUU_CAPTCHA_SOLVER_ENABLED | 可选 | 是否启用验证码(0/1) |
 | IKUUU_CAPTCHA_PROVIDER | 可选 | 验证码服务商(capsolver/anticaptcha) |
-| IKUUU_CAPSOLVER_API_KEY | 可选 | CapSolver Key |
-| IKUUU_ANTICAPTCHA_API_KEY | 可选 | AntiCaptcha Key |
+| IKUUU_CAPSOLVER_API_KEY | 可选 | CapSolver Api Key |
+| IKUUU_ANTICAPTCHA_API_KEY | 可选 | AntiCaptcha Api Key |
 | IKUUU_CAPTCHA_TIMEOUT_SECONDS | 可选 | 验证码超时时间(秒) |
 | IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | 可选 | 轮询间隔(秒) |
 
