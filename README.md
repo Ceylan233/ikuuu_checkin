@@ -26,7 +26,7 @@
 Settings → Secrets and variables → Actions
 
 新建以下变量：
-
+推荐使用CapSolver过验证，使用此链接注册后充值可额外获得6%充值额度：https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 | 参数 | 是否必须 | 说明 |
 |------|----------|------|
 | ACCOUNTS | ⚠ 必须 | ikuuu账号密码 |
