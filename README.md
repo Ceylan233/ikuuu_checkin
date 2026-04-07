@@ -64,9 +64,9 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 ## 运行截图
 
-**未添加过验证api：** <br/>
+**未添加过验证api：** <br/><br/>
 <img src="https://github.com/user-attachments/assets/9103aa0a-d4e9-4f60-9244-0d615386c0d8" width="400"><br/>
 
-**添加过验证api：** <br/>
+**添加过验证api：** <br/><br/>
 <img src="https://github.com/user-attachments/assets/c85ad84a-742b-4fb3-a60d-502c20935ced" width="400">
 
