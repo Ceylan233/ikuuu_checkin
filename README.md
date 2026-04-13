@@ -59,8 +59,8 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 不需要通知可不填写邮箱相关参数
 
 ---
-## 3. 到Actions中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/> 
-
+## 3. 自动运行
+### 方式一：GitHub Actions
 
 ### 方式二：云服务器（推荐）
 更推荐使用云服务器，更稳定，时间更精准，不会被github检测为薅羊毛。<br/> 
