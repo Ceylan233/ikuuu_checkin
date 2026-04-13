@@ -91,7 +91,8 @@ export IKUUU_CAPSOLVER_API_KEY=""
 export IKUUU_CAPTCHA_TIMEOUT_SECONDS="120"
 export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="3"
 
-/usr/bin/python3 /root/ikuuu_checkin/auto_check_in_ikuuu.py```
+/usr/bin/python3 /root/ikuuu_checkin/auto_check_in_ikuuu.py
+```
 
 ---
 
