@@ -670,6 +670,128 @@ def find_working_domain():
     print("❌ 所有域名均不可用")
     return None
 
+COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ikuuu_cookies.json")
+COOKIE_MAX_AGE_DAYS = 7
+
+
+def load_cookie_store():
+    if not os.path.exists(COOKIE_FILE):
+        return {}
+    try:
+        with open(COOKIE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_cookie_store(store):
+    try:
+        with open(COOKIE_FILE, "w", encoding="utf-8") as f:
+            json.dump(store, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️ 保存cookie失败: {e}")
+
+
+def get_cookie_key(email, base_url):
+    host = urlparse(base_url).netloc.lower()
+    return f"{email}@@{host}"
+
+
+def save_session_cookie(email, base_url, session):
+    key = get_cookie_key(email, base_url)
+    store = load_cookie_store()
+    cookie_dict = requests.utils.dict_from_cookiejar(session.cookies)
+    store[key] = {
+        "email": email,
+        "base_url": base_url,
+        "saved_at": int(time.time()),
+        "cookies": cookie_dict
+    }
+    save_cookie_store(store)
+
+
+def load_session_cookie(email, base_url):
+    key = get_cookie_key(email, base_url)
+    store = load_cookie_store()
+    item = store.get(key)
+    if not item:
+        return None
+
+    saved_at = int(item.get("saved_at", 0))
+    max_age = COOKIE_MAX_AGE_DAYS * 24 * 3600
+    if not saved_at or time.time() - saved_at > max_age:
+        return None
+
+    cookies = item.get("cookies")
+    if not isinstance(cookies, dict) or not cookies:
+        return None
+    return cookies
+
+
+def clear_session_cookie(email, base_url):
+    key = get_cookie_key(email, base_url)
+    store = load_cookie_store()
+    if key in store:
+        del store[key]
+        save_cookie_store(store)
+
+
+def validate_cookie(session, base_url):
+    try:
+        resp = session.get(
+            base_url + "/user",
+            headers={"User-Agent": USER_AGENT},
+            timeout=15,
+            allow_redirects=True
+        )
+
+        final_url = resp.url.lower()
+        text = resp.text or ""
+
+        if resp.status_code != 200:
+            return False
+
+        if "/auth/login" in final_url:
+            return False
+
+        if "login" in final_url and "auth" in final_url:
+            return False
+
+        if "var originBody" in text or "剩余流量" in text or "/user/checkin" in text:
+            return True
+
+        return False
+    except Exception:
+        return False
+
+
+def do_checkin_with_session(session, base_url):
+    flow_value, flow_unit = get_remaining_flow(session.cookies)
+
+    checkin_res = session.post(
+        base_url + '/user/checkin',
+        headers=HEADERS,
+        timeout=20,
+        allow_redirects=True,
+    )
+    if checkin_res.status_code != 200:
+        return False, f"签到失败（状态码{checkin_res.status_code}）", flow_value, flow_unit
+
+    try:
+        checkin_data = checkin_res.json()
+    except json.JSONDecodeError:
+        return False, '响应解析失败', flow_value, flow_unit
+
+    if checkin_data.get('ret') == 1:
+        return True, f"成功 | {checkin_data.get('msg', '')}", flow_value, flow_unit
+
+    checkin_msg = str(checkin_data.get('msg', '未知错误'))
+    if is_already_checked_in(checkin_msg):
+        return True, f"成功 | {checkin_msg}", flow_value, flow_unit
+
+    return False, f"签到失败：{checkin_msg}", flow_value, flow_unit
+
 
 def get_remaining_flow(cookies):
     """获取用户剩余流量信息"""
@@ -718,8 +840,26 @@ def get_remaining_flow(cookies):
 def ikuuu_signin(email, password):
     base_url = f'https://{ikun_host}'
     login_opts = get_login_opts()
-    session = requests.session()
+
     try:
+        session = requests.session()
+
+        # 1. 优先尝试本地cookie
+        cached_cookies = load_session_cookie(email, base_url)
+        if cached_cookies:
+            session.cookies = requests.utils.cookiejar_from_dict(cached_cookies)
+            if validate_cookie(session, base_url):
+                print("  🍪 检测到有效cookie，直接使用cookie签到，未消耗token")
+                success, msg, flow_value, flow_unit = do_checkin_with_session(session, base_url)
+                if success:
+                    return success, msg + " | 使用cookie，未消耗token", flow_value, flow_unit
+                else:
+                    print("  ⚠️ cookie可访问但签到失败，继续尝试帐密登录")
+            else:
+                print("  ⚠️ 本地cookie已失效，将改用帐密登录")
+                clear_session_cookie(email, base_url)
+
+        # 2. cookie不存在或失效，走帐密登录
         body, post_base_url, build_err = build_login_body(base_url, email, password, login_opts, session)
         if build_err:
             return False, f"登录失败：{build_err}", "登录失败", "无法获取"
@@ -744,29 +884,16 @@ def ikuuu_signin(email, password):
         if login_data.get('ret') != 1:
             return False, f"登录失败：{login_data.get('msg', '未知错误')}", '登录失败', '无法获取'
 
-        flow_value, flow_unit = get_remaining_flow(session.cookies)
+        # 3. 登录成功，保存cookie
+        save_session_cookie(email, base_url, session)
+        print("  💾 帐密登录成功，已保存cookie")
 
-        checkin_res = session.post(
-            post_base_url + '/user/checkin',
-            headers=HEADERS,
-            timeout=20,
-            allow_redirects=True,
-        )
-        if checkin_res.status_code != 200:
-            return False, f"签到失败（状态码{checkin_res.status_code}）", flow_value, flow_unit
+        # 4. 继续签到
+        success, msg, flow_value, flow_unit = do_checkin_with_session(session, post_base_url)
+        if success:
+            return success, msg + " | 使用帐密登录", flow_value, flow_unit
+        return success, msg, flow_value, flow_unit
 
-        try:
-            checkin_data = checkin_res.json()
-        except json.JSONDecodeError:
-            return False, '响应解析失败', flow_value, flow_unit
-
-        if checkin_data.get('ret') == 1:
-            return True, f"成功 | {checkin_data.get('msg', '')}", flow_value, flow_unit
-
-        checkin_msg = str(checkin_data.get('msg', '未知错误'))
-        if is_already_checked_in(checkin_msg):
-            return True, f"成功 | {checkin_msg}", flow_value, flow_unit
-        return False, f"签到失败：{checkin_msg}", flow_value, flow_unit
     except requests.exceptions.Timeout:
         return False, '请求超时', '未知', '未知'
     except Exception as e:
