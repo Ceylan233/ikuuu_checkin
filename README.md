@@ -94,6 +94,7 @@ export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="3"
 /usr/bin/python3 /root/ikuuu_checkin/auto_check_in_ikuuu.py
 
 ---
+
 ## 4. 最后，可以到Run sign查看签到情况，同时也会也会将签到详情推送。
 
 ## 运行截图
