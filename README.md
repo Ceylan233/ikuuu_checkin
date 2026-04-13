@@ -3,6 +3,7 @@
 ## 作用
 > 每天进行签到，获取额外的流量奖励<br/>
 > 2026年4月ikuuu新增登录请求验证Geetest v4，不使用过验证方式已无法正常签到
+> 添加cookie缓存登陆，帐密登录后自动记录cookie，有效期内进行签到不消耗token，单账号理论7天最低0.0016$(0.011￥)
 
 ---
 
@@ -46,7 +47,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 平台最低充值 6 美元。  
 
-签到价格约为 0.0016 美元/次（单账号），重复签到仍会计费。  
+签到价格约为 0.0016 美元(0.011￥)/次（单账号），重复签到仍会计费。  
 
 ---
 **ACCOUNTS 写法：**  
@@ -59,6 +60,39 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 ---
 ## 3. 到Actions中创建一个workflow，运行一次，以后每天项目都会自动运行。<br/> 
+
+
+### 方式二：云服务器（推荐）
+更推荐使用云服务器，更稳定，时间更精准，不会被github检测为薅羊毛。
+**优点：**
+
+- 更稳定  
+- 时间更精准  
+- 不易被风控  
+
+---
+
+#### Linux 启动脚本
+
+```bash
+#!/bin/bash
+source /etc/profile
+
+cd /root/ikuuu_checkin || exit 1
+
+export ACCOUNTS=""
+export MAIL_USER=""
+export MAIL_PASS=""
+export MAIL_TO=""
+
+export IKUUU_CAPTCHA_SOLVER_ENABLED="1"
+export IKUUU_CAPTCHA_PROVIDER="capsolver"
+export IKUUU_CAPSOLVER_API_KEY=""
+export IKUUU_CAPTCHA_TIMEOUT_SECONDS="120"
+export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="3"
+
+/usr/bin/python3 /root/ikuuu_checkin/auto_check_in_ikuuu.py
+
 ---
 ## 4. 最后，可以到Run sign查看签到情况，同时也会也会将签到详情推送。
 
