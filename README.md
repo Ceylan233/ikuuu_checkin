@@ -63,7 +63,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 
 ### 方式二：云服务器（推荐）
-更推荐使用云服务器，更稳定，时间更精准，不会被github检测为薅羊毛。
+更推荐使用云服务器，更稳定，时间更精准，不会被github检测为薅羊毛。<br/> 
 **优点：**
 
 - 更稳定  
