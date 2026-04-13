@@ -61,7 +61,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 ---
 ## 3. 自动运行
 ### 方式一：GitHub Actions
-
+创建 workflow 后运行一次，之后每天自动执行
 ### 方式二：云服务器（推荐）
 更推荐使用云服务器，更稳定，时间更精准，不会被github检测为薅羊毛。<br/> 
 **优点：**
