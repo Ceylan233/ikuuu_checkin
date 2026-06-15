@@ -105,6 +105,6 @@ export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="3"
 
 ---
 **添加过验证api：** <br/><br/>
-<img width="1440" height="2270" alt="089a067781416f0af997b21318ad44e" src="https://github.com/user-attachments/assets/aaf9a41d-df84-495a-b391-306ad3701c55" />
+<img width="1440" height="2270" alt="089a067781416f0af997b21318ad44e" src="https://github.com/user-attachments/assets/aaf9a41d-df84-495a-b391-306ad3701c55" width="400"/>
 
 
