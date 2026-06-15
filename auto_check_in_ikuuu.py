@@ -91,7 +91,8 @@ def _env_int(names, default):
 def get_login_opts():
     enabled = _env_bool('IKUUU_CAPTCHA_SOLVER_ENABLED', 'CAPTCHA_SOLVER_ENABLED', default=True)
     provider = os.getenv('IKUUU_CAPTCHA_PROVIDER') or os.getenv('CAPTCHA_PROVIDER') or 'capsolver'
-    fallback_provider = os.getenv('IKUUU_CAPTCHA_FALLBACK_PROVIDER') or os.getenv('CAPTCHA_FALLBACK_PROVIDER') or 'anticaptcha'
+    fallback_provider = os.getenv('IKUUU_CAPTCHA_FALLBACK_PROVIDER') or os.getenv(
+        'CAPTCHA_FALLBACK_PROVIDER') or 'anticaptcha'
     timeout_seconds = _env_int(['IKUUU_CAPTCHA_TIMEOUT_SECONDS', 'CAPTCHA_TIMEOUT_SECONDS'], 120)
     poll_interval_seconds = _env_int(['IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS', 'CAPTCHA_POLL_INTERVAL_SECONDS'], 3)
     remember_me = os.getenv('IKUUU_REMEMBER_ME')
@@ -113,6 +114,7 @@ def get_login_opts():
             'poll_interval_seconds': poll_interval_seconds,
         }
     }
+
 
 def extract_origin_body(html):
     if not html:
@@ -283,6 +285,7 @@ def solve_geetest_v4(base_url, captcha_id, init_params, solver_cfg, stats=None):
         return None, '未配置验证码服务API Key'
     return None, last_err or 'captcha solve failed'
 
+
 def get_captcha_info():
     enabled = os.getenv("IKUUU_CAPTCHA_SOLVER_ENABLED", "0") == "1"
     provider = os.getenv("IKUUU_CAPTCHA_PROVIDER", "capsolver")
@@ -319,6 +322,7 @@ def get_captcha_info():
 
     return f"已使用 {provider}"
 
+
 def get_captcha_provider_only():
     enabled = os.getenv("IKUUU_CAPTCHA_SOLVER_ENABLED", "0") == "1"
     if not enabled:
@@ -326,6 +330,7 @@ def get_captcha_provider_only():
 
     provider = os.getenv("IKUUU_CAPTCHA_PROVIDER", "capsolver")
     return f"已使用 {provider}"
+
 
 def detect_captcha(html):
     return bool(html and CAPTCHA_RE.search(html))
@@ -415,7 +420,6 @@ def normalize_url_as_base(value):
     except Exception:
         return None
     return None
-
 
 
 def get_accounts():
@@ -670,6 +674,7 @@ def find_working_domain():
     print("❌ 所有域名均不可用")
     return None
 
+
 COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ikuuu_cookies.json")
 COOKIE_MAX_AGE_DAYS = 7
 
@@ -837,6 +842,194 @@ def get_remaining_flow(cookies):
         return "流量获取异常", str(e)
 
 
+def get_user_info(cookies):
+    flow = "未知"
+    reset_days = "未知"
+    expire_date = "未知"
+    expire_days = "未知"
+    balance = "未知"
+
+    try:
+
+        user_page = requests.get(
+            f"https://{ikun_host}/user",
+            cookies=cookies,
+            headers={"User-Agent": USER_AGENT},
+            timeout=20
+        )
+
+        if user_page.status_code == 200:
+
+            match = re.search(
+                r'var originBody = "([^"]+)"',
+                user_page.text
+            )
+
+            if match:
+
+                html = base64.b64decode(
+                    match.group(1)
+                ).decode(
+                    "utf-8",
+                    errors="ignore"
+                )
+
+                soup = BeautifulSoup(
+                    html,
+                    "html.parser"
+                )
+
+                cards = soup.find_all(
+                    "div",
+                    class_="card card-statistic-2"
+                )
+
+                for card in cards:
+
+                    h4 = card.find("h4")
+
+                    if not h4:
+                        continue
+
+                    title = h4.get_text(strip=True)
+
+                    if title == "剩余流量":
+
+                        counter = card.find(
+                            "span",
+                            class_="counter"
+                        )
+
+                        if counter:
+                            value = counter.get_text(strip=True)
+
+                            unit = str(
+                                counter.next_sibling
+                            ).strip()
+
+                            flow = f"{value} {unit}"
+
+                    elif title == "会员时长":
+
+                        li = card.find(
+                            "li",
+                            class_="breadcrumb-item"
+                        )
+
+                        if li:
+
+                            m = re.search(
+                                r'(\d{4}-\d{2}-\d{2})',
+                                li.get_text(
+                                    " ",
+                                    strip=True
+                                )
+                            )
+
+                            if m:
+                                expire_date = m.group(1)
+
+                    elif title == "钱包余额":
+
+                        counter = card.find(
+                            "span",
+                            class_="counter"
+                        )
+
+                        if counter:
+                            balance = (
+                                    "¥" +
+                                    counter.get_text(strip=True)
+                            )
+
+        code_page = requests.get(
+            f"https://{ikun_host}/user/code",
+            cookies=cookies,
+            headers={"User-Agent": USER_AGENT},
+            timeout=20
+        )
+
+        if code_page.status_code == 200:
+
+            match = re.search(
+                r'var originBody = "([^"]+)"',
+                code_page.text
+            )
+
+            if match:
+
+                html = base64.b64decode(
+                    match.group(1)
+                ).decode(
+                    "utf-8",
+                    errors="ignore"
+                )
+
+                # print("====== DECODE CODE PAGE ======")
+                # print(html[:5000])
+                # print("==============================")
+
+                m = re.search(
+                    r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})',
+                    html
+                )
+
+                if m:
+
+                    purchase_time = datetime.datetime.strptime(
+                        m.group(1),
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+
+                    now = datetime.datetime.now()
+
+                    next_reset = purchase_time
+
+                    while next_reset <= now:
+                        next_reset += datetime.timedelta(days=30)
+
+                    reset_days = (
+                            next_reset.date()
+                            - now.date()
+                    ).days
+
+                    print(f"  购买时间:{purchase_time}")
+                    print(f"  下次重置:{next_reset}")
+                    print(f"  剩余总天数:{reset_days}")
+                expire_days = "未知"
+
+                try:
+                    expire_dt = datetime.datetime.strptime(
+                        expire_date,
+                        "%Y-%m-%d"
+                    )
+
+                    expire_days = (
+                            expire_dt.date()
+                            - datetime.datetime.now().date()
+                    ).days
+
+                except Exception:
+                    pass
+        return (
+            flow,
+            str(reset_days),
+            f"{expire_date}(总剩余{expire_days}天)",
+            balance
+        )
+
+    except Exception as e:
+
+        print(f"获取用户信息失败: {e}")
+
+        return (
+            flow,
+            reset_days,
+            expire_date,
+            balance
+        )
+
+
 def ikuuu_signin(email, password):
     base_url = f'https://{ikun_host}'
     login_opts = get_login_opts()
@@ -846,23 +1039,75 @@ def ikuuu_signin(email, password):
 
         # 1. 优先尝试本地cookie
         cached_cookies = load_session_cookie(email, base_url)
-        if cached_cookies:
-            session.cookies = requests.utils.cookiejar_from_dict(cached_cookies)
-            if validate_cookie(session, base_url):
-                print("  🍪 检测到有效cookie，直接使用cookie签到，未消耗token")
-                success, msg, flow_value, flow_unit = do_checkin_with_session(session, base_url)
-                if success:
-                    return success, msg + " | 使用cookie，未消耗token", flow_value, flow_unit
-                else:
-                    print("  ⚠️ cookie可访问但签到失败，继续尝试帐密登录")
-            else:
-                print("  ⚠️ 本地cookie已失效，将改用帐密登录")
-                clear_session_cookie(email, base_url)
 
-        # 2. cookie不存在或失效，走帐密登录
-        body, post_base_url, build_err = build_login_body(base_url, email, password, login_opts, session)
+        if cached_cookies:
+            session.cookies = requests.utils.cookiejar_from_dict(
+                cached_cookies
+            )
+
+            if validate_cookie(session, base_url):
+
+                print(
+                    "  🍪 检测到有效cookie"
+                )
+
+                success, msg, flow_value, flow_unit = \
+                    do_checkin_with_session(
+                        session,
+                        base_url
+                    )
+
+                flow, reset_days, expire_date, balance = \
+                    get_user_info(
+                        session.cookies
+                    )
+
+                if success:
+                    return (
+                        success,
+                        msg + " | 使用cookie，未消耗token",
+                        flow,
+                        reset_days,
+                        expire_date,
+                        balance
+                    )
+
+                print(
+                    "  ⚠️ cookie签到失败，改用帐密登录"
+                )
+                clear_session_cookie(
+                    email,
+                    base_url
+                )
+            else:
+                print(
+                    "  ⚠️ 本地cookie已失效，将改用帐密登录"
+                )
+
+                clear_session_cookie(
+                    email,
+                    base_url
+                )
+
+        # 2. 帐密登录
+        body, post_base_url, build_err = \
+            build_login_body(
+                base_url,
+                email,
+                password,
+                login_opts,
+                session
+            )
+
         if build_err:
-            return False, f"登录失败：{build_err}", "登录失败", "无法获取"
+            return (
+                False,
+                f"登录失败：{build_err}",
+                build_err,
+                build_err,
+                build_err,
+                build_err
+            )
 
         login_res = session.post(
             post_base_url + '/auth/login',
@@ -871,33 +1116,118 @@ def ikuuu_signin(email, password):
             timeout=20,
             allow_redirects=True,
         )
-        if login_res.status_code == 405 or '405 Not Allowed' in (login_res.text or ''):
-            return False, '登录失败：登录被拒绝(405)', '登录失败', '无法获取'
+        print("登录URL:", login_res.url)
+        print("登录状态码:", login_res.status_code)
+        print("登录返回:", login_res.text[:1000])
+        if (
+                login_res.status_code == 405
+                or
+                '405 Not Allowed' in (
+                login_res.text or ''
+        )
+        ):
+            return (
+                False,
+                '登录失败：登录被拒绝(405)',
+                '无法获取',
+                '无法获取',
+                '无法获取',
+                '无法获取'
+            )
+
         if login_res.status_code != 200:
-            return False, f"登录失败（状态码{login_res.status_code}）", "登录失败", "无法获取"
+            return (
+                False,
+                f"登录失败（状态码{login_res.status_code}）",
+                '无法获取',
+                '无法获取',
+                '无法获取',
+                '无法获取'
+            )
 
         try:
+
             login_data = login_res.json()
+
         except json.JSONDecodeError:
-            return False, '响应解析失败', '未知', '未知'
+
+            return (
+                False,
+                '响应解析失败',
+                '未知',
+                '未知',
+                '未知',
+                '未知'
+            )
 
         if login_data.get('ret') != 1:
-            return False, f"登录失败：{login_data.get('msg', '未知错误')}", '登录失败', '无法获取'
+            print(login_data)
 
-        # 3. 登录成功，保存cookie
-        save_session_cookie(email, base_url, session)
-        print("  💾 帐密登录成功，已保存cookie")
+            return (
+                False,
+                f"登录失败：{login_data.get('msg', '未知错误')}",
+                '无法获取',
+                '无法获取',
+                '无法获取',
+                '无法获取'
+            )
 
-        # 4. 继续签到
-        success, msg, flow_value, flow_unit = do_checkin_with_session(session, post_base_url)
+        # 3. 登录成功
+        save_session_cookie(
+            email,
+            base_url,
+            session
+        )
+
+        print(
+            "  💾 帐密登录成功，已保存cookie"
+        )
+
+        # 4. 签到
+        success, msg, flow_value, flow_unit = \
+            do_checkin_with_session(
+                session,
+                post_base_url
+            )
+
+        flow, reset_days, expire_date, balance = \
+            get_user_info(
+                session.cookies
+            )
+
         if success:
-            return success, msg + " | 使用帐密登录", flow_value, flow_unit
-        return success, msg, flow_value, flow_unit
+            msg += " | 使用帐密登录"
+
+        return (
+            success,
+            msg,
+            flow,
+            reset_days,
+            expire_date,
+            balance
+        )
 
     except requests.exceptions.Timeout:
-        return False, '请求超时', '未知', '未知'
+
+        return (
+            False,
+            '请求超时',
+            '未知',
+            '未知',
+            '未知',
+            '未知'
+        )
+
     except Exception as e:
-        return False, f"请求异常：{str(e)}", '未知', '未知'
+
+        return (
+            False,
+            f"请求异常：{str(e)}",
+            '未知',
+            '未知',
+            '未知',
+            '未知'
+        )
 
 
 def send_qinglong_notification(results, current_domain):
@@ -920,9 +1250,12 @@ def send_qinglong_notification(results, current_domain):
     for index, res in enumerate(results, 1):
         status = "✅ 成功" if res['success'] else "❌ 失败"
         message.append(f"{index}. {res['email']}")
-        message.append(f"  状态：{status}")
-        message.append(f"  详情：{res['message']}")
-        message.append(f"  剩余流量：{res['flow_value']} {res['flow_unit']}")
+        message.append(f"   状态：{status}")
+        message.append(f"   详情：{res['message']}")
+        message.append(f"   剩余流量：{res['flow']}")
+        message.append(f"   下次流量重置：{res['reset_days']}天")
+        message.append(f"   会员到期：{res['expire_date']}")
+        message.append(f"   钱包余额：{res['balance']}")
         message.append("--------------------------------")
 
     # 添加统计信息
@@ -961,7 +1294,10 @@ def send_163mail_notification(results, current_domain, captcha_info=None):
         message.append(f"{index}. {res['email']}")
         message.append(f"   状态：{status}")
         message.append(f"   详情：{res['message']}")
-        message.append(f"   剩余流量：{res['flow_value']} {res['flow_unit']}")
+        message.append(f"   剩余流量：{res['flow']}")
+        message.append(f"   下次流量重置：{res['reset_days']}天")
+        message.append(f"   会员到期：{res['expire_date']}")
+        message.append(f"   钱包余额：{res['balance']}")
         message.append("-" * 50)
 
     message.append(
@@ -1016,9 +1352,12 @@ def send_outlookmail_notification(results, current_domain):
     for index, res in enumerate(results, 1):
         status = "✅ 成功" if res['success'] else "❌ 失败"
         message.append(f"{index}. {res['email']}")
-        message.append(f"  状态：{status}")
-        message.append(f"  详情：{res['message']}")
-        message.append(f"  剩余流量：{res['flow_value']} {res['flow_unit']}")
+        message.append(f"   状态：{status}")
+        message.append(f"   详情：{res['message']}")
+        message.append(f"   剩余流量：{res['flow']}")
+        message.append(f"   下次流量重置：{res['reset_days']}天")
+        message.append(f"   会员到期：{res['expire_date']}")
+        message.append(f"   钱包余额：{res['balance']}")
         message.append("--------------------------------")
 
     message.append(
@@ -1094,18 +1433,26 @@ if __name__ == "__main__":
     results = []
     for index, (email, pwd) in enumerate(accounts, 1):
         print(f"\n👤 [{index}/{len(accounts)}] 处理账户: {email}")
-        success, msg, flow_value, flow_unit = ikuuu_signin(email, pwd)
+        success, msg, flow, reset_days, expire_date, balance = ikuuu_signin(
+            email,
+            pwd
+        )
         results.append({
             'email': email,
             'success': success,
             'message': msg,
-            'flow_value': flow_value,
-            'flow_unit': flow_unit
+            'flow': flow,
+            'reset_days': reset_days,
+            'expire_date': expire_date,
+            'balance': balance
         })
 
         status_icon = "✅" if success else "❌"
         print(f"  {status_icon} 结果: {msg}")
-        print(f"  📊 剩余流量: {flow_value} {flow_unit}")
+        print(f"  📊 剩余流量: {flow}")
+        print(f"  🔄 下次流量重置: {reset_days}天")
+        print(f"  👑 会员到期: {expire_date}")
+        print(f"  💰 钱包余额: {balance}")
 
         # 账户间延迟防止请求过快
         if index < len(accounts):  # 最后一个账户不需要延迟
@@ -1132,7 +1479,10 @@ if __name__ == "__main__":
         status_icon = "✅" if res['success'] else "❌"
         print(f"{status_icon} {res['email']}")
         print(f"   详情: {res['message']}")
-        print(f"   流量: {res['flow_value']} {res['flow_unit']}")
+        print(f"   剩余流量: {res['flow']}")
+        print(f"   下次流量重置: {res['reset_days']}天")
+        print(f"   会员到期: {res['expire_date']}")
+        print(f"   钱包余额: {res['balance']}")
 
     print("=" * 50)
     print("🏁 脚本执行完成")
