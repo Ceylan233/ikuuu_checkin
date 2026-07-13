@@ -1,0 +1,64 @@
+#!/bin/sh
+set -e
+
+. /lib/functions.sh
+
+append_recipient() {
+	[ -n "$1" ] || return
+	mail_to="${mail_to}${mail_to:+,}$1"
+}
+
+config_load ikuuu-checkin
+config_get accounts main accounts
+config_get captcha_enabled main captcha_enabled 1
+config_get captcha_provider main captcha_provider capsolver
+config_get capsolver_api_key main capsolver_api_key
+config_get anticaptcha_api_key main anticaptcha_api_key
+config_get captcha_timeout main captcha_timeout 120
+config_get captcha_poll_interval main captcha_poll_interval 3
+config_get mail_provider main mail_provider 163
+config_get mail_user main mail_user
+config_get mail_pass main mail_pass
+config_get smtp_host main smtp_host
+config_get smtp_username main smtp_username
+config_get smtp_port main smtp_port
+config_get smtp_security main smtp_security
+config_get subject_prefix main subject_prefix 'iKuuu 签到通知'
+config_list_foreach main mail_to append_recipient
+
+export ACCOUNTS="$accounts"
+export IKUUU_DATA_DIR=/etc/ikuuu-checkin
+export IKUUU_DISABLE_SELF_UPDATE=1
+export IKUUU_CAPTCHA_SOLVER_ENABLED="$captcha_enabled"
+export IKUUU_CAPTCHA_PROVIDER="$captcha_provider"
+export IKUUU_CAPSOLVER_API_KEY="$capsolver_api_key"
+export IKUUU_ANTICAPTCHA_API_KEY="$anticaptcha_api_key"
+export IKUUU_CAPTCHA_TIMEOUT_SECONDS="$captcha_timeout"
+export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="$captcha_poll_interval"
+export MAIL_PROVIDER="$mail_provider"
+export MAIL_USER="$mail_user"
+export MAIL_PASS="$mail_pass"
+export MAIL_TO="$mail_to"
+export IKUUU_MAIL_SUBJECT_PREFIX="$subject_prefix"
+[ -n "$smtp_username" ] && export SMTP_USERNAME="$smtp_username"
+
+if [ "$mail_provider" = custom ]; then
+	[ -n "$smtp_host" ] && export SMTP_HOST="$smtp_host"
+	[ -n "$smtp_port" ] && export SMTP_PORT="$smtp_port"
+	[ -n "$smtp_security" ] && export SMTP_SECURITY="$smtp_security"
+fi
+
+mkdir -p /etc/ikuuu-checkin
+
+case "${1:-run}" in
+	run)
+		exec /usr/bin/python3 /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py
+		;;
+	test)
+		exec /usr/bin/python3 /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py --send-test
+		;;
+	*)
+		echo "Usage: $0 {run|test}" >&2
+		exit 2
+		;;
+esac

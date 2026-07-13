@@ -1,0 +1,6 @@
+dist/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+ikuuu_cookies.json
+.env

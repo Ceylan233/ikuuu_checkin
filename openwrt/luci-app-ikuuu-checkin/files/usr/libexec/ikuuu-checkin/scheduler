@@ -1,0 +1,22 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+STATE=/tmp/ikuuu-checkin.schedule-state
+LOG=/tmp/ikuuu-checkin.log
+
+while true; do
+	config_load ikuuu-checkin
+	config_get hour main hour 8
+	config_get minute main minute 0
+	now_hour="$(date +%H)"
+	now_minute="$(date +%M)"
+	key="$(date +%Y-%m-%d)-${hour}-${minute}"
+	last="$(cat "$STATE" 2>/dev/null)"
+
+	if [ "$now_hour" -eq "$hour" ] 2>/dev/null && [ "$now_minute" -eq "$minute" ] 2>/dev/null && [ "$last" != "$key" ]; then
+		echo "$key" > "$STATE"
+		/usr/libexec/ikuuu-checkin/run run >> "$LOG" 2>&1
+	fi
+	sleep 30
+done

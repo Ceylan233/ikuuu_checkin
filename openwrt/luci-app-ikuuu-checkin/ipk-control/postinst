@@ -1,0 +1,11 @@
+#!/bin/sh
+[ -n "$IPKG_INSTROOT" ] && exit 0
+chmod 600 /etc/config/ikuuu-checkin 2>/dev/null || true
+mkdir -p /etc/ikuuu-checkin
+if ! /usr/bin/python3 -c 'import bs4' >/dev/null 2>&1; then
+	/usr/bin/pip3 install --no-cache-dir 'beautifulsoup4>=4.12,<5' || \
+		/usr/bin/pip3 install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple 'beautifulsoup4>=4.12,<5' || exit 1
+fi
+rm -f /tmp/luci-indexcache /tmp/luci-modulecache/* 2>/dev/null || true
+/etc/init.d/ikuuu-checkin enable 2>/dev/null || true
+exit 0

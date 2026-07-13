@@ -1,0 +1,8 @@
+Package: luci-app-ikuuu-checkin
+Version: 1.0.0-1
+Architecture: all
+Maintainer: Ceylan233
+Depends: luci-base, python3, python3-pip, python3-requests, python3-lxml, ca-bundle
+Section: luci
+Priority: optional
+Description: LuCI configuration and scheduler for iKuuu check-in.

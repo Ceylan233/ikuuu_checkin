@@ -10,8 +10,8 @@
 ## 推送方式
 - 🚀 auto_check_in_ikuuu.py 支持：
   - 青龙面板通知
-  - Outlook 邮箱
-  - 163 邮箱
+  - 163、126、QQ/Foxmail、Gmail、Yahoo、Outlook 邮箱
+  - 自定义 SMTP、多个收件人
 
 ---
 
@@ -35,6 +35,11 @@ Settings → Secrets and variables → Actions
 | MAIL_USER | 可选 | 发件邮箱 |
 | MAIL_PASS | 可选 | 邮箱应用密码 |
 | MAIL_TO | 可选 | 收件邮箱 |
+| MAIL_PROVIDER | 可选 | 邮箱类型，默认自动识别 |
+| SMTP_HOST | 自定义时 | SMTP 服务器 |
+| SMTP_USERNAME | 可选 | SMTP 登录用户名，默认与发件邮箱相同 |
+| SMTP_PORT | 可选 | SMTP 端口 |
+| SMTP_SECURITY | 可选 | ssl/starttls/plain |
 | IKUUU_CAPTCHA_SOLVER_ENABLED | 可选 | 是否启用验证码(0/1) |
 | IKUUU_CAPTCHA_PROVIDER | 可选 | 验证码服务商(capsolver/anticaptcha) |
 | IKUUU_CAPSOLVER_API_KEY | 可选 | CapSolver Api Key |
@@ -69,6 +74,18 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 - 更稳定  
 - 时间更精准  
 - 不易被风控  
+
+---
+
+### 方式三：OpenWrt / iStoreOS 软件包
+
+从 [Releases](https://github.com/Ceylan233/ikuuu_checkin/releases) 下载 IPK 后安装：
+
+```sh
+opkg install luci-app-ikuuu-checkin_1.0.0-1_all.ipk
+```
+
+安装后进入 LuCI 的“服务 → iKuuu 签到”，可配置多账号、验证码服务、邮箱、每日定时，也可手动签到或发送测试邮件。
 
 ---
 

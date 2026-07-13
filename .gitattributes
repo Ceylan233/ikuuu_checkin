@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.lua text eol=lf
+Makefile text eol=lf
+openwrt/**/files/etc/init.d/* text eol=lf
+openwrt/**/files/usr/libexec/** text eol=lf
+openwrt/**/ipk-control/* text eol=lf
