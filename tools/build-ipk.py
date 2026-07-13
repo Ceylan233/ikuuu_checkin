@@ -11,7 +11,7 @@ PACKAGE = ROOT / "openwrt" / "luci-app-ikuuu-checkin"
 FILES = PACKAGE / "files"
 CONTROL = PACKAGE / "ipk-control"
 DIST = ROOT / "dist"
-VERSION = "1.0.0-1"
+VERSION = "1.0.1-1"
 OUTPUT = DIST / f"luci-app-ikuuu-checkin_{VERSION}_all.ipk"
 
 

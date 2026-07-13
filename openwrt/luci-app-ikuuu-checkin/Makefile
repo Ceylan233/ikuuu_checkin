@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-ikuuu-checkin
-PKG_VERSION:=1.0.0
+PKG_VERSION:=1.0.1
 PKG_RELEASE:=1
 PKG_LICENSE:=MIT
 
@@ -42,6 +42,8 @@ if ! /usr/bin/python3 -c 'import bs4' >/dev/null 2>&1; then
 fi
 rm -f /tmp/luci-indexcache /tmp/luci-modulecache/* 2>/dev/null || true
 /etc/init.d/ikuuu-checkin enable 2>/dev/null || true
+[ "$$(uci -q get ikuuu-checkin.main.enabled)" = "1" ] && \
+	/etc/init.d/ikuuu-checkin restart 2>/dev/null || true
 exit 0
 endef
 

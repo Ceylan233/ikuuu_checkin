@@ -4,8 +4,10 @@ set -e
 . /lib/functions.sh
 
 append_recipient() {
-	[ -n "$1" ] || return
-	mail_to="${mail_to}${mail_to:+,}$1"
+	if [ -n "$1" ]; then
+		mail_to="${mail_to}${mail_to:+,}$1"
+	fi
+	return 0
 }
 
 config_load ikuuu-checkin
