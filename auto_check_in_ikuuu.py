@@ -53,8 +53,36 @@ except ImportError:
     # print("⚠️ 无法加载通知模块，请检查路径配置")
     send = lambda title, content: None  # 创建空函数防止报错
 
-# 初始域名
-ikun_host = "ikuuu.fyi"  # 自动更新于2025-07-25 09:56:36
+def normalize_ikuuu_host(value):
+    """将用户填写的域名或 URL 标准化为请求使用的 host。"""
+    raw_value = str(value or "").strip()
+    if not raw_value:
+        return ""
+
+    parsed = urlparse(raw_value if "://" in raw_value else f"//{raw_value}")
+    if parsed.scheme and parsed.scheme.lower() not in ("http", "https"):
+        return ""
+
+    host = parsed.hostname
+    if not host:
+        return ""
+
+    try:
+        port = parsed.port
+    except ValueError:
+        return ""
+
+    normalized_host = host.rstrip(".").lower()
+    if not normalized_host or any(char.isspace() for char in normalized_host):
+        return ""
+
+    return f"{normalized_host}:{port}" if port else normalized_host
+
+
+# 默认域名与用户自定义域名
+default_ikun_host = "ikuuu.fyi"
+custom_ikun_host = normalize_ikuuu_host(os.getenv("IKUUU_DOMAIN", ""))
+ikun_host = custom_ikun_host or default_ikun_host
 backup_hosts = ["ikuuu.one", "ikuuu.nl", "ikuuu.de"]  # 备用域名列表
 
 # 统一的User-Agent
@@ -664,9 +692,9 @@ def update_self_host(new_host):
 
         updated = False
         for i, line in enumerate(lines):
-            if line.strip().startswith("ikun_host = "):
+            if line.strip().startswith("default_ikun_host = "):
                 lines[
-                    i] = f'ikun_host = "{new_host}"  # 自动更新于{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n'
+                    i] = f'default_ikun_host = "{new_host}"  # 自动更新于{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n'
                 updated = True
                 break
 
@@ -709,13 +737,15 @@ def find_working_domain():
     """
     global ikun_host
 
-    # 1. 首先检查当前域名
+    # 1. 首先检查用户自定义域名或当前域名
+    if custom_ikun_host:
+        print(f"🧭 自定义域名: {custom_ikun_host}")
     print(f"🏠 当前域名: {ikun_host}")
     if test_host_reachable(ikun_host):
         return ikun_host
 
     # 2. 从当前域名和备用域名中获取新域名信息
-    all_domains_to_check = [ikun_host] + backup_hosts
+    all_domains_to_check = list(dict.fromkeys([ikun_host] + backup_hosts))
     discovered_domains = []
 
     for domain in all_domains_to_check:
@@ -723,7 +753,7 @@ def find_working_domain():
         discovered_domains.extend(new_domains)
 
     # 去重
-    discovered_domains = list(set(discovered_domains))
+    discovered_domains = list(dict.fromkeys(discovered_domains))
     print(f"🔍 发现的域名: {discovered_domains}")
 
     # 3. 测试发现的域名

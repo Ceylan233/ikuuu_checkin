@@ -58,6 +58,9 @@ o = s:taboption("schedule", TextValue, "accounts", translate("签到账号"))
 o.rows = 4
 o.rmempty = false
 o.description = translate("每行一个账号，格式为 邮箱:密码。")
+o = s:taboption("schedule", Value, "custom_domain", translate("自定义 iKuuu 域名"))
+o.placeholder = "ikuuu.example"
+o.description = translate("域名变更时填写，支持 ikuuu.example 或 https://ikuuu.example/；留空则自动检测。自定义域名不可用时仍会尝试备用域名。")
 
 o = s:taboption("captcha", Flag, "captcha_enabled", translate("启用验证码服务"))
 o.default = 1

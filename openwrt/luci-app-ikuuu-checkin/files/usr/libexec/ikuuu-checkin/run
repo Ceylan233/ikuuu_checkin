@@ -12,6 +12,7 @@ append_recipient() {
 
 config_load ikuuu-checkin
 config_get accounts main accounts
+config_get custom_domain main custom_domain
 config_get captcha_enabled main captcha_enabled 1
 config_get captcha_provider main captcha_provider capsolver
 config_get capsolver_api_key main capsolver_api_key
@@ -29,6 +30,7 @@ config_get subject_prefix main subject_prefix 'iKuuu 签到通知'
 config_list_foreach main mail_to append_recipient
 
 export ACCOUNTS="$accounts"
+export IKUUU_DOMAIN="$custom_domain"
 export IKUUU_DATA_DIR=/etc/ikuuu-checkin
 export IKUUU_DISABLE_SELF_UPDATE=1
 export IKUUU_CAPTCHA_SOLVER_ENABLED="$captcha_enabled"
