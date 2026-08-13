@@ -83,7 +83,7 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 从 [Releases](https://github.com/Ceylan233/ikuuu_checkin/releases) 下载 IPK 后安装：
 
 ```sh
-opkg install luci-app-ikuuu-checkin_1.1.0-1_all.ipk
+opkg install luci-app-ikuuu-checkin_1.1.1-1_all.ipk
 ```
 
 安装后进入 LuCI 的“服务 → iKuuu 签到”，可配置多账号、自定义 iKuuu 域名、验证码服务、邮箱、每日定时，也可手动签到或发送测试邮件。域名变更时，在“定时与账号”中填写新域名即可；留空时继续使用自动检测，自定义域名不可用时也会回退到备用域名。

@@ -91,6 +91,12 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 HEADERS = {
     "Accept": "application/json, text/javascript, */*; q=0.01",
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "X-Requested-With": "XMLHttpRequest",
+    "user-agent": USER_AGENT,
+}
+
+PAGE_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "user-agent": USER_AGENT,
 }
 
@@ -446,15 +452,18 @@ def is_already_checked_in(msg):
 
 
 def build_login_body(base_url, email, password, login_opts, session):
-    body = {'email': email, 'password': password, 'passwd': password}
+    body = {
+        'email': email,
+        'password': password,
+        'passwd': password,
+        'phase': 'password',
+    }
     try:
         host = urlparse(base_url).netloc
         if host:
             body['host'] = host
     except Exception:
         pass
-    body['pageLoadedAt'] = int(time.time() * 1000)
-
     two_fa_code = login_opts.get('two_fa_code')
     if two_fa_code:
         body['code'] = two_fa_code
@@ -465,18 +474,26 @@ def build_login_body(base_url, email, password, login_opts, session):
         for key, value in captcha_result.items():
             body[f'captcha_result[{key}]'] = value
 
-    remember_me = login_opts.get('remember_me')
-    if remember_me is not None:
+    remember_me = str(login_opts.get('remember_me') or '').strip().lower()
+    if remember_me not in ('', 'off', '0', 'false', 'no'):
         body['remember_me'] = remember_me
 
     login_page_html = ''
     login_page_url = None
     try:
-        page_resp = session.get(base_url + '/auth/login', headers=HEADERS, timeout=12, allow_redirects=True)
+        page_resp = session.get(
+            base_url + '/auth/login',
+            headers=PAGE_HEADERS,
+            timeout=12,
+            allow_redirects=True,
+        )
+        page_resp.raise_for_status()
         login_page_html = page_resp.text or ''
         login_page_url = page_resp.url
-    except Exception:
-        pass
+    except Exception as e:
+        return None, base_url, f'登录页面加载失败: {e}'
+
+    body['pageLoadedAt'] = int(time.time() * 1000)
 
     analysis_html = extract_origin_body(login_page_html) or login_page_html
     post_base_url = base_url
@@ -509,6 +526,10 @@ def build_login_body(base_url, email, password, login_opts, session):
                 body[f'captcha_result[{key}]'] = value
 
     return body, post_base_url, None
+
+
+def login_response_authenticated(login_data):
+    return login_data.get('ret') == 1 or login_data.get('phase') == 'authenticated'
 
 
 def normalize_url_as_base(value):
@@ -1219,7 +1240,11 @@ def ikuuu_signin(email, password):
         login_res = session.post(
             post_base_url + '/auth/login',
             data=body,
-            headers=HEADERS,
+            headers={
+                **HEADERS,
+                'Origin': post_base_url,
+                'Referer': post_base_url + '/auth/login',
+            },
             timeout=20,
             allow_redirects=True,
         )
@@ -1267,12 +1292,20 @@ def ikuuu_signin(email, password):
                 '未知'
             )
 
-        if login_data.get('ret') != 1:
+        if not login_response_authenticated(login_data):
             print(login_data)
+
+            phase = login_data.get('phase')
+            if phase == 'totp':
+                login_message = '需要二步验证码，请配置 IKUUU_2FA_CODE'
+            elif phase == 'email_code':
+                login_message = '站点要求邮箱验证码，自动签到暂不支持该登录阶段'
+            else:
+                login_message = login_data.get('msg', '未知错误')
 
             return (
                 False,
-                f"登录失败：{login_data.get('msg', '未知错误')}",
+                f"登录失败：{login_message}",
                 '无法获取',
                 '无法获取',
                 '无法获取',

@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -37,6 +38,57 @@ class DomainTests(unittest.TestCase):
                 os.environ.pop("IKUUU_DOMAIN", None)
             else:
                 os.environ["IKUUU_DOMAIN"] = previous
+
+    def test_login_page_uses_html_headers_and_new_phase(self):
+        module = load_module()
+
+        class Response:
+            text = "<script>const captchaId = 'cc96d05ba8b60f9112f76e18526fcb73';</script>"
+            url = "https://ikuuu.example/auth/login"
+
+            @staticmethod
+            def raise_for_status():
+                return None
+
+        class Session:
+            request_headers = None
+
+            def get(self, url, headers, timeout, allow_redirects):
+                self.request_headers = headers
+                return Response()
+
+        session = Session()
+        login_opts = {
+            "remember_me": "off",
+            "captcha_result": {},
+            "captcha_solver": {"enabled": True},
+        }
+        solution = {
+            "lot_number": "lot",
+            "captcha_output": "output",
+            "pass_token": "token",
+            "gen_time": "time",
+        }
+
+        with patch.object(module, "solve_geetest_v4", return_value=(solution, None)):
+            body, post_base_url, error = module.build_login_body(
+                "https://ikuuu.example", "user@example.com", "password", login_opts, session
+            )
+
+        self.assertIsNone(error)
+        self.assertEqual(post_base_url, "https://ikuuu.example")
+        self.assertIn("text/html", session.request_headers["Accept"])
+        self.assertEqual(body["phase"], "password")
+        self.assertEqual(body["host"], "ikuuu.example")
+        self.assertNotIn("remember_me", body)
+        self.assertEqual(body["captcha_result[lot_number]"], "lot")
+
+    def test_new_and_legacy_login_success_formats(self):
+        module = load_module()
+
+        self.assertTrue(module.login_response_authenticated({"phase": "authenticated"}))
+        self.assertTrue(module.login_response_authenticated({"ret": 1}))
+        self.assertFalse(module.login_response_authenticated({"phase": "password", "ret": 0}))
 
 
 if __name__ == "__main__":

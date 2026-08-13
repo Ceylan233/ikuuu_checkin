@@ -1,3 +1,9 @@
+# v1.1.1
+
+- 适配 iKuuu 新登录流程：使用 HTML 页面请求头并提交 `phase=password`。
+- 兼容 `phase=authenticated` 登录成功响应，补齐 AJAX 来源请求头。
+- 登录页加载失败时直接报告真实状态，不再继续提交无效请求。
+
 # v1.1.0
 
 - LuCI 新增自定义 iKuuu 域名输入框，支持填写域名或完整 URL。
