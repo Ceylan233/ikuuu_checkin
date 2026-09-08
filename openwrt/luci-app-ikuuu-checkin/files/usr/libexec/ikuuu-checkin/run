@@ -70,13 +70,14 @@ if [ "$mail_provider" = custom ]; then
 fi
 
 mkdir -p /etc/ikuuu-checkin
+export PYTHONUNBUFFERED=1
 
 case "${1:-run}" in
 	run)
-		exec /usr/bin/python3 /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py
+		exec /usr/bin/python3 -u /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py
 		;;
 	test)
-		exec /usr/bin/python3 /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py --send-test
+		exec /usr/bin/python3 -u /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py --send-test
 		;;
 	*)
 		echo "Usage: $0 {run|test}" >&2

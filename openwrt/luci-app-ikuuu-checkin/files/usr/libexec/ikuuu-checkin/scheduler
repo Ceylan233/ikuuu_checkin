@@ -16,7 +16,9 @@ while true; do
 
 	if [ "$now_hour" -eq "$hour" ] 2>/dev/null && [ "$now_minute" -eq "$minute" ] 2>/dev/null && [ "$last" != "$key" ]; then
 		echo "$key" > "$STATE"
+		printf '%s [定时任务] 开始执行签到\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$LOG"
 		/usr/libexec/ikuuu-checkin/run run >> "$LOG" 2>&1
+		printf '%s [定时任务] 签到任务结束，退出码: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$?" >> "$LOG"
 	fi
 	sleep 30
 done

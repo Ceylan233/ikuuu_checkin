@@ -289,20 +289,65 @@ def _imap_message_timestamp(fetch_item):
         return None
 
 
-def find_recent_email_code(client, requested_at):
-    status, data = client.search(None, "ALL")
+def _latest_imap_uid(client):
+    status, data = client.uid("search", None, "ALL")
     if status != "OK" or not data:
         return None
-    message_ids = data[0].split()[-30:]
+    message_ids = data[0].split()
+    return message_ids[-1] if message_ids else b"0"
+
+
+def _newer_imap_uids(message_ids, after_uid):
+    if after_uid is None:
+        return message_ids[-30:]
+    try:
+        checkpoint = int(after_uid)
+    except (TypeError, ValueError):
+        return message_ids[-30:]
+    newer = []
+    for message_id in message_ids:
+        try:
+            if int(message_id) > checkpoint:
+                newer.append(message_id)
+        except (TypeError, ValueError):
+            continue
+    return newer
+
+
+def prepare_login_email_code_lookup(account_email, mailbox_password):
+    client = None
+    try:
+        print("  [邮箱验证] 正在连接 IMAP 并记录本次登录前的邮件状态", flush=True)
+        client = _connect_imap(account_email, mailbox_password)
+        checkpoint = _latest_imap_uid(client)
+        if checkpoint is None:
+            raise RuntimeError("无法读取 IMAP 邮件列表")
+        print("  [邮箱验证] IMAP 预检查完成，将只读取本次登录后新到的邮件", flush=True)
+        return checkpoint, None
+    except Exception as e:
+        return None, f"邮箱验证预检查失败: {e}"
+    finally:
+        if client is not None:
+            try:
+                client.logout()
+            except Exception:
+                pass
+
+
+def find_recent_email_code(client, requested_at, after_uid=None):
+    status, data = client.uid("search", None, "ALL")
+    if status != "OK" or not data:
+        return None
+    message_ids = _newer_imap_uids(data[0].split(), after_uid)
     for message_id in reversed(message_ids):
-        status, fetched = client.fetch(message_id, "(RFC822 INTERNALDATE)")
+        status, fetched = client.uid("fetch", message_id, "(RFC822 INTERNALDATE)")
         if status != "OK" or not fetched:
             continue
         record = next((item for item in fetched if isinstance(item, tuple)), None)
         if not record or len(record) < 2:
             continue
         received_at = _imap_message_timestamp(record)
-        if received_at is not None and received_at < requested_at - 120:
+        if received_at is not None and received_at < requested_at - 15:
             continue
         code = extract_login_email_code(record[1])
         if code:
@@ -310,18 +355,22 @@ def find_recent_email_code(client, requested_at):
     return None
 
 
-def wait_for_login_email_code(account_email, mailbox_password, requested_at):
+def wait_for_login_email_code(account_email, mailbox_password, requested_at, after_uid=None):
     timeout_seconds = _env_int(["IKUUU_EMAIL_CODE_TIMEOUT_SECONDS"], 120)
     poll_interval = _env_int(["IKUUU_EMAIL_CODE_POLL_INTERVAL_SECONDS"], 5)
     deadline = time.time() + max(1, timeout_seconds)
     client = None
+    attempt = 0
     try:
+        print("  [邮箱验证] 正在连接 IMAP 等待登录验证码", flush=True)
         client = _connect_imap(account_email, mailbox_password)
-        print("  📮 正在等待登录邮箱验证码")
+        print("  [邮箱验证] IMAP 已连接，开始轮询本次登录的新邮件", flush=True)
         while time.time() < deadline:
-            code = find_recent_email_code(client, requested_at)
+            attempt += 1
+            print(f"  [邮箱验证] 第 {attempt} 次检查新邮件", flush=True)
+            code = find_recent_email_code(client, requested_at, after_uid)
             if code:
-                print("  📮 已读取到登录邮箱验证码")
+                print("  [邮箱验证] 已读取到本次登录验证码，准备提交", flush=True)
                 return code, None
             time.sleep(max(1, poll_interval))
         return None, f"等待邮箱验证码超时（{timeout_seconds}秒）"
@@ -333,7 +382,6 @@ def wait_for_login_email_code(account_email, mailbox_password, requested_at):
                 client.logout()
             except Exception:
                 pass
-
 
 def send_smtp_mail(subject, content):
     mail_user = os.getenv("MAIL_USER", "").strip()
@@ -546,6 +594,7 @@ def solve_geetest_v4(base_url, captcha_id, init_params, solver_cfg, stats=None):
         if provider in ('capsolver', 'anticaptcha') and not get_captcha_api_key(provider, solver_cfg):
             continue
         attempted += 1
+        print(f"  [验证码] 正在提交 {provider} 解码任务", flush=True)
         if provider == 'capsolver':
             solution, err = solve_captcha_capsolver(base_url, captcha_id, solver_cfg, stats=stats)
         elif provider == 'anticaptcha':
@@ -553,7 +602,9 @@ def solve_geetest_v4(base_url, captcha_id, init_params, solver_cfg, stats=None):
         else:
             solution, err = None, f'未知captcha provider: {provider}'
         if solution:
+            print(f"  [验证码] {provider} 已返回解码结果", flush=True)
             return solution, None
+        print(f"  [验证码] {provider} 未完成解码，尝试下一个可用服务", flush=True)
         last_err = err or ''
 
     if attempted == 0:
@@ -649,6 +700,7 @@ def build_login_body(base_url, email, password, login_opts, session):
     login_page_html = ''
     login_page_url = None
     try:
+        print("  [登录] 正在加载登录页面", flush=True)
         page_resp = session.get(
             base_url + '/auth/login',
             headers=PAGE_HEADERS,
@@ -658,6 +710,7 @@ def build_login_body(base_url, email, password, login_opts, session):
         page_resp.raise_for_status()
         login_page_html = page_resp.text or ''
         login_page_url = page_resp.url
+        print("  [登录] 登录页面加载完成", flush=True)
     except Exception as e:
         return None, base_url, f'登录页面加载失败: {e}'
 
@@ -678,6 +731,7 @@ def build_login_body(base_url, email, password, login_opts, session):
         if csrf and '_token' not in body:
             body['_token'] = csrf
         if detect_captcha(analysis_html) and not (isinstance(captcha_result, dict) and captcha_result):
+            print("  [验证码] 检测到 GeeTest，开始解码", flush=True)
             if login_opts.get('ignore_captcha'):
                 return None, post_base_url, '登录页面包含验证码(GeeTest)，已配置忽略但服务端通常会拒绝'
             solver_cfg = login_opts.get('captcha_solver', {}) or {}
@@ -701,6 +755,8 @@ def login_response_authenticated(login_data):
 
 
 def submit_login_request(session, base_url, body):
+    phase = body.get('phase', 'unknown')
+    print(f"  [登录] 正在提交 {phase} 阶段请求", flush=True)
     response = session.post(
         base_url + '/auth/login',
         data=body,
@@ -712,15 +768,17 @@ def submit_login_request(session, base_url, body):
         timeout=20,
         allow_redirects=True,
     )
-    print("登录URL:", response.url)
-    print("登录状态码:", response.status_code)
-    print("登录返回:", response.text[:1000])
+    print(f"  [登录] {phase} 阶段响应状态码: {response.status_code}", flush=True)
     if response.status_code == 405 or '405 Not Allowed' in (response.text or ''):
         return None, '登录被拒绝(405)'
     if response.status_code != 200:
         return None, f"登录失败（状态码{response.status_code}）"
     try:
-        return response.json(), None
+        login_data = response.json()
+        response_phase = login_data.get('phase') if isinstance(login_data, dict) else None
+        if response_phase:
+            print(f"  [登录] 服务端进入 {response_phase} 阶段", flush=True)
+        return login_data, None
     except (ValueError, json.JSONDecodeError):
         return None, '登录响应解析失败'
 
@@ -1103,8 +1161,10 @@ def validate_cookie(session, base_url):
 
 
 def do_checkin_with_session(session, base_url):
+    print("  [签到] 正在读取当前剩余流量", flush=True)
     flow_value, flow_unit = get_remaining_flow(session.cookies)
 
+    print("  [签到] 正在提交签到请求", flush=True)
     checkin_res = session.post(
         base_url + '/user/checkin',
         headers=HEADERS,
@@ -1120,10 +1180,12 @@ def do_checkin_with_session(session, base_url):
         return False, '响应解析失败', flow_value, flow_unit
 
     if checkin_data.get('ret') == 1:
+        print("  [签到] 签到请求成功", flush=True)
         return True, f"成功 | {checkin_data.get('msg', '')}", flow_value, flow_unit
 
     checkin_msg = str(checkin_data.get('msg', '未知错误'))
     if is_already_checked_in(checkin_msg):
+        print("  [签到] 今日已签到", flush=True)
         return True, f"成功 | {checkin_msg}", flow_value, flow_unit
 
     return False, f"签到失败：{checkin_msg}", flow_value, flow_unit
@@ -1181,7 +1243,7 @@ def get_user_info(cookies):
     balance = "未知"
 
     try:
-
+        print("  [账户] 正在读取账户信息", flush=True)
         user_page = requests.get(
             f"https://{ikun_host}/user",
             cookies=cookies,
@@ -1367,6 +1429,7 @@ def ikuuu_signin(email, password, mailbox_password=""):
 
     try:
         session = requests.session()
+        print("  [账户] 正在检查本地登录会话", flush=True)
 
         # 1. 优先尝试本地cookie
         cached_cookies = load_session_cookie(email, base_url)
@@ -1379,7 +1442,8 @@ def ikuuu_signin(email, password, mailbox_password=""):
             if validate_cookie(session, base_url):
 
                 print(
-                    "  🍪 检测到有效cookie"
+                    "  🍪 检测到有效cookie",
+                    flush=True,
                 )
 
                 success, msg, flow_value, flow_unit = \
@@ -1404,7 +1468,8 @@ def ikuuu_signin(email, password, mailbox_password=""):
                     )
 
                 print(
-                    "  ⚠️ cookie签到失败，改用帐密登录"
+                    "  ⚠️ cookie签到失败，改用帐密登录",
+                    flush=True,
                 )
                 clear_session_cookie(
                     email,
@@ -1412,12 +1477,30 @@ def ikuuu_signin(email, password, mailbox_password=""):
                 )
             else:
                 print(
-                    "  ⚠️ 本地cookie已失效，将改用帐密登录"
+                    "  ⚠️ 本地cookie已失效，将改用帐密登录",
+                    flush=True,
                 )
 
                 clear_session_cookie(
                     email,
                     base_url
+                )
+
+        # Record the mailbox before requesting a new code, so an old code cannot be reused.
+        email_uid_checkpoint = None
+        if mailbox_password:
+            email_uid_checkpoint, email_lookup_error = prepare_login_email_code_lookup(
+                email,
+                mailbox_password,
+            )
+            if email_lookup_error:
+                return (
+                    False,
+                    f"登录失败：{email_lookup_error}",
+                    '无法获取',
+                    '无法获取',
+                    '无法获取',
+                    '无法获取'
                 )
 
         # 2. 帐密登录
@@ -1461,6 +1544,7 @@ def ikuuu_signin(email, password, mailbox_password=""):
                 email,
                 mailbox_password,
                 email_code_requested_at,
+                email_uid_checkpoint,
             )
             if email_code_error:
                 return (
@@ -1493,7 +1577,7 @@ def ikuuu_signin(email, password, mailbox_password=""):
                 )
 
         if not login_response_authenticated(login_data):
-            print(login_data)
+            print(f"  [登录] 登录未完成，当前阶段: {login_data.get('phase', 'unknown')}", flush=True)
 
             phase = login_data.get('phase')
             if phase == 'totp':
@@ -1523,7 +1607,8 @@ def ikuuu_signin(email, password, mailbox_password=""):
         )
 
         print(
-            "  💾 帐密登录成功，已保存cookie"
+            "  💾 帐密登录成功，已保存cookie",
+            flush=True,
         )
 
         # 4. 签到

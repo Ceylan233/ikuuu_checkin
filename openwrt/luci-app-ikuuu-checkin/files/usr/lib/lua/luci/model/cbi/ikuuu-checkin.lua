@@ -1,5 +1,6 @@
 local sys = require "luci.sys"
 local util = require "luci.util"
+local dispatcher = require "luci.dispatcher"
 
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
@@ -22,14 +23,14 @@ end
 o = s:taboption("status", Button, "_run", translate("立即签到"))
 o.inputstyle = "apply"
 function o.write()
-	sys.call("/usr/libexec/ikuuu-checkin/run run >/tmp/ikuuu-checkin.log 2>&1 &")
+	sys.call("LOG=/tmp/ikuuu-checkin.log; : > \"$LOG\"; printf '%s [手动任务] 已启动签到任务\\n' \"$(date '+%Y-%m-%d %H:%M:%S')\" >> \"$LOG\"; /usr/libexec/ikuuu-checkin/run run >> \"$LOG\" 2>&1 &")
 	m.message = translate("签到任务已启动。")
 end
 
 o = s:taboption("status", Button, "_test", translate("发送测试邮件"))
 o.inputstyle = "apply"
 function o.write()
-	local result = sys.call("/usr/libexec/ikuuu-checkin/run test >/tmp/ikuuu-checkin.log 2>&1")
+	local result = sys.call("LOG=/tmp/ikuuu-checkin.log; : > \"$LOG\"; printf '%s [手动任务] 正在发送测试邮件\\n' \"$(date '+%Y-%m-%d %H:%M:%S')\" >> \"$LOG\"; /usr/libexec/ikuuu-checkin/run test >> \"$LOG\" 2>&1")
 	m.message = result == 0 and translate("测试邮件发送成功。") or translate("发送失败，请查看运行日志。")
 end
 
@@ -37,7 +38,9 @@ o = s:taboption("status", DummyValue, "_log", translate("运行日志"))
 o.rawhtml = true
 function o.cfgvalue()
 	local output = trim(sys.exec("tail -n 50 /tmp/ikuuu-checkin.log 2>/dev/null"))
-	return '<pre style="max-height:360px;overflow:auto;white-space:pre-wrap">' .. util.pcdata(output ~= "" and output or translate("暂无日志")) .. '</pre>'
+	local log_url = dispatcher.build_url("admin", "services", "ikuuu-checkin", "log")
+	return '<pre id="ikuuu-checkin-log" style="max-height:360px;overflow:auto;white-space:pre-wrap">' .. util.pcdata(output ~= "" and output or translate("暂无日志")) .. '</pre>' ..
+		'<script type="text/javascript">(function(){var log=document.getElementById("ikuuu-checkin-log");function refresh(){var request=new XMLHttpRequest();request.open("GET","' .. util.pcdata(log_url) .. '",true);request.onreadystatechange=function(){if(request.readyState===4&&request.status===200){var atEnd=log.scrollTop+log.clientHeight>=log.scrollHeight-8;log.textContent=request.responseText||"暂无日志";if(atEnd){log.scrollTop=log.scrollHeight;}}};request.send(null);}refresh();window.setInterval(refresh,2000);})();</script>'
 end
 
 s:tab("schedule", translate("定时与账号"))
