@@ -88,6 +88,22 @@ class MailTests(unittest.TestCase):
         self.assertEqual(client.calls[0][0], "search")
         self.assertEqual(client.calls[1], ("fetch", (b"42", "(RFC822 INTERNALDATE)")))
 
+    def test_wait_for_code_refreshes_imap_before_searching(self):
+        monitor = load_monitor()
+        client = mock.Mock()
+        client.noop.return_value = ("OK", [b""])
+        with mock.patch.object(monitor, "_connect_imap", return_value=client), mock.patch.object(
+            monitor, "find_recent_email_code", return_value="12345678"
+        ):
+            code, error = monitor.wait_for_login_email_code(
+                "user@example.com", "mail-authorization-code", 0, b"41"
+            )
+
+        self.assertEqual(code, "12345678")
+        self.assertIsNone(error)
+        client.noop.assert_called_once_with()
+        client.logout.assert_called_once_with()
+
     def test_email_code_phase_submits_code_on_same_session(self):
         monitor = load_monitor()
         session = mock.Mock()

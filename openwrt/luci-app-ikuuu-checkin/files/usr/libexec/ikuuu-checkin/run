@@ -25,7 +25,7 @@ config_get imap_port main imap_port 993
 config_get imap_security main imap_security ssl
 config_get imap_folder main imap_folder INBOX
 config_get email_code_timeout main email_code_timeout 120
-config_get email_code_poll_interval main email_code_poll_interval 5
+config_get email_code_poll_interval main email_code_poll_interval 2
 config_get mail_provider main mail_provider 163
 config_get mail_user main mail_user
 config_get mail_pass main mail_pass

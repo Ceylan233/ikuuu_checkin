@@ -118,7 +118,7 @@ o.datatype = "range(30,600)"
 o.default = 120
 o = s:taboption("email_verify", Value, "email_code_poll_interval", translate("邮箱轮询间隔（秒）"))
 o.datatype = "range(1,30)"
-o.default = 5
+o.default = 2
 
 o = s:taboption("mail", ListValue, "mail_provider", translate("发件邮箱类型"))
 o:value("163", "163 邮箱")

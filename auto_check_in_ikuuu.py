@@ -357,17 +357,28 @@ def find_recent_email_code(client, requested_at, after_uid=None):
 
 def wait_for_login_email_code(account_email, mailbox_password, requested_at, after_uid=None):
     timeout_seconds = _env_int(["IKUUU_EMAIL_CODE_TIMEOUT_SECONDS"], 120)
-    poll_interval = _env_int(["IKUUU_EMAIL_CODE_POLL_INTERVAL_SECONDS"], 5)
-    deadline = time.time() + max(1, timeout_seconds)
+    poll_interval = _env_int(["IKUUU_EMAIL_CODE_POLL_INTERVAL_SECONDS"], 2)
+    started_at = time.time()
+    deadline = started_at + max(1, timeout_seconds)
     client = None
     attempt = 0
     try:
         print("  [邮箱验证] 正在连接 IMAP 等待登录验证码", flush=True)
         client = _connect_imap(account_email, mailbox_password)
-        print("  [邮箱验证] IMAP 已连接，开始轮询本次登录的新邮件", flush=True)
+        print(
+            f"  [邮箱验证] IMAP 已连接，每 {max(1, poll_interval)} 秒检查本次登录的新邮件",
+            flush=True,
+        )
         while time.time() < deadline:
             attempt += 1
-            print(f"  [邮箱验证] 第 {attempt} 次检查新邮件", flush=True)
+            elapsed = int(time.time() - started_at)
+            print(f"  [邮箱验证] 第 {attempt} 次检查新邮件（已等待 {elapsed} 秒）", flush=True)
+            try:
+                status, _ = client.noop()
+                if status != "OK":
+                    print("  [邮箱验证] IMAP 刷新未确认，继续查询邮件列表", flush=True)
+            except Exception as e:
+                print(f"  [邮箱验证] IMAP 刷新失败，继续查询：{e}", flush=True)
             code = find_recent_email_code(client, requested_at, after_uid)
             if code:
                 print("  [邮箱验证] 已读取到本次登录验证码，准备提交", flush=True)
