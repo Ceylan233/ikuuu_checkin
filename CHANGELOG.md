@@ -1,3 +1,10 @@
+# v1.2.0
+
+- 账号配置支持 `账号邮箱:iKuuu密码:邮箱密码或授权码`，第三段保持可选。
+- 登录返回 `phase=email_code` 时，通过同一会话提交邮件中的 8 位验证码。
+- 支持自动识别 QQ/Foxmail、163、126、Gmail、Yahoo、Outlook IMAP，也支持自定义 IMAP。
+- OpenWrt LuCI 新增邮箱验证设置并继续以 `600` 权限保存配置。
+
 # v1.1.1
 
 - 适配 iKuuu 新登录流程：使用 HTML 页面请求头并提交 `phase=password`。

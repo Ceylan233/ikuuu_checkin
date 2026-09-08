@@ -19,6 +19,13 @@ config_get capsolver_api_key main capsolver_api_key
 config_get anticaptcha_api_key main anticaptcha_api_key
 config_get captcha_timeout main captcha_timeout 120
 config_get captcha_poll_interval main captcha_poll_interval 3
+config_get imap_provider main imap_provider auto
+config_get imap_host main imap_host
+config_get imap_port main imap_port 993
+config_get imap_security main imap_security ssl
+config_get imap_folder main imap_folder INBOX
+config_get email_code_timeout main email_code_timeout 120
+config_get email_code_poll_interval main email_code_poll_interval 5
 config_get mail_provider main mail_provider 163
 config_get mail_user main mail_user
 config_get mail_pass main mail_pass
@@ -39,12 +46,22 @@ export IKUUU_CAPSOLVER_API_KEY="$capsolver_api_key"
 export IKUUU_ANTICAPTCHA_API_KEY="$anticaptcha_api_key"
 export IKUUU_CAPTCHA_TIMEOUT_SECONDS="$captcha_timeout"
 export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="$captcha_poll_interval"
+export IKUUU_IMAP_PROVIDER="$imap_provider"
+export IKUUU_IMAP_FOLDER="$imap_folder"
+export IKUUU_EMAIL_CODE_TIMEOUT_SECONDS="$email_code_timeout"
+export IKUUU_EMAIL_CODE_POLL_INTERVAL_SECONDS="$email_code_poll_interval"
 export MAIL_PROVIDER="$mail_provider"
 export MAIL_USER="$mail_user"
 export MAIL_PASS="$mail_pass"
 export MAIL_TO="$mail_to"
 export IKUUU_MAIL_SUBJECT_PREFIX="$subject_prefix"
 [ -n "$smtp_username" ] && export SMTP_USERNAME="$smtp_username"
+
+if [ "$imap_provider" = custom ]; then
+	[ -n "$imap_host" ] && export IKUUU_IMAP_HOST="$imap_host"
+	[ -n "$imap_port" ] && export IKUUU_IMAP_PORT="$imap_port"
+	[ -n "$imap_security" ] && export IKUUU_IMAP_SECURITY="$imap_security"
+fi
 
 if [ "$mail_provider" = custom ]; then
 	[ -n "$smtp_host" ] && export SMTP_HOST="$smtp_host"

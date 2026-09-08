@@ -5,7 +5,11 @@ name: iKuuu签到
 cron: 0 0 8 * * ?
 """
 import smtplib
+import imaplib
+from email import policy
+from email.header import decode_header
 from email.mime.text import MIMEText
+from email.parser import BytesParser
 import requests
 import re
 import json
@@ -28,6 +32,15 @@ SMTP_PROVIDERS = {
     "gmail": ("smtp.gmail.com", 465, "ssl"),
     "yahoo": ("smtp.mail.yahoo.com", 465, "ssl"),
     "outlook": ("smtp-mail.outlook.com", 587, "starttls"),
+}
+
+IMAP_PROVIDERS = {
+    "163": ("imap.163.com", 993, "ssl"),
+    "126": ("imap.126.com", 993, "ssl"),
+    "qq": ("imap.qq.com", 993, "ssl"),
+    "gmail": ("imap.gmail.com", 993, "ssl"),
+    "yahoo": ("imap.mail.yahoo.com", 993, "ssl"),
+    "outlook": ("outlook.office365.com", 993, "ssl"),
 }
 
 # 添加青龙脚本根目录到Python路径
@@ -110,6 +123,19 @@ NAME_RE = re.compile(r"name=[\"']([^\"']+)[\"']", re.I)
 VALUE_RE = re.compile(r"value=[\"']([^\"']*)[\"']", re.I)
 META_CSRF_RE = re.compile(r"<meta[^>]+name=[\"']csrf-token[\"'][^>]*content=[\"']([^\"']+)[\"']", re.I)
 CAPTCHA_RE = re.compile(r"captcha|验证码|recaptcha|hcaptcha|geetest|initgeetest|captcha_result", re.I)
+EMAIL_CODE_CONTEXT_RE = re.compile(
+    r"ikuuu|登录[^\n]{0,20}验证码|邮箱[^\n]{0,20}验证码|"
+    r"verification\s*code|email\s*code|login\s*code",
+    re.I,
+)
+EMAIL_CODE_PATTERNS = (
+    re.compile(
+        r"(?:验证码|verification\s*code|email\s*code|login\s*code)"
+        r"[^0-9]{0,40}([0-9]{8})(?![0-9])",
+        re.I,
+    ),
+    re.compile(r"(?<![0-9])([0-9]{8})(?![0-9])"),
+)
 
 
 def _env_bool(*names, default=False):
@@ -165,6 +191,148 @@ def smtp_settings(address):
     if security not in ("ssl", "starttls", "plain"):
         raise RuntimeError("SMTP_SECURITY 必须是 ssl、starttls 或 plain")
     return host, port, security
+
+
+def _decode_mime_header(value):
+    decoded = []
+    for item, charset in decode_header(value or ""):
+        if isinstance(item, bytes):
+            decoded.append(item.decode(charset or "utf-8", errors="replace"))
+        else:
+            decoded.append(str(item))
+    return "".join(decoded)
+
+
+def _message_text(message):
+    parts = []
+    messages = message.walk() if message.is_multipart() else (message,)
+    for part in messages:
+        if part.get_content_disposition() == "attachment":
+            continue
+        content_type = part.get_content_type()
+        if content_type not in ("text/plain", "text/html"):
+            continue
+        try:
+            content = part.get_content()
+        except Exception:
+            payload = part.get_payload(decode=True) or b""
+            content = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        if content_type == "text/html":
+            content = BeautifulSoup(content, "html.parser").get_text(" ")
+        parts.append(str(content))
+    return "\n".join(parts)
+
+
+def extract_login_email_code(raw_message):
+    try:
+        message = BytesParser(policy=policy.default).parsebytes(raw_message)
+    except Exception:
+        return None
+    subject = _decode_mime_header(message.get("Subject", ""))
+    text = subject + "\n" + _message_text(message)
+    if not EMAIL_CODE_CONTEXT_RE.search(text):
+        return None
+    for pattern in EMAIL_CODE_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def imap_settings(account_email, mailbox_password):
+    imap_user = os.getenv("IKUUU_IMAP_USER", "").strip() or account_email
+    provider = os.getenv("IKUUU_IMAP_PROVIDER", "auto").strip().lower()
+    if provider == "auto":
+        provider = infer_mail_provider(imap_user)
+    defaults = IMAP_PROVIDERS.get(provider, ("", 993, "ssl"))
+    host = os.getenv("IKUUU_IMAP_HOST", "").strip() or defaults[0]
+    port = int(os.getenv("IKUUU_IMAP_PORT", "").strip() or defaults[1])
+    security = os.getenv("IKUUU_IMAP_SECURITY", "").strip().lower() or defaults[2]
+    if not host:
+        raise RuntimeError("自定义 IMAP 必须填写 IKUUU_IMAP_HOST")
+    if security not in ("ssl", "starttls", "plain"):
+        raise RuntimeError("IKUUU_IMAP_SECURITY 必须是 ssl、starttls 或 plain")
+
+    if not imap_user or not mailbox_password:
+        raise RuntimeError("账号配置中未提供邮箱密码或授权码")
+    return imap_user, mailbox_password, host, port, security
+
+
+def _connect_imap(account_email, mailbox_password):
+    username, password, host, port, security = imap_settings(
+        account_email,
+        mailbox_password,
+    )
+    if security == "ssl":
+        client = imaplib.IMAP4_SSL(host, port, timeout=30)
+    else:
+        client = imaplib.IMAP4(host, port, timeout=30)
+        if security == "starttls":
+            client.starttls()
+    client.login(username, password)
+    folder = os.getenv("IKUUU_IMAP_FOLDER", "INBOX").strip() or "INBOX"
+    status, _ = client.select(folder, readonly=True)
+    if status != "OK":
+        client.logout()
+        raise RuntimeError(f"无法打开 IMAP 邮箱目录: {folder}")
+    return client
+
+
+def _imap_message_timestamp(fetch_item):
+    if not isinstance(fetch_item, tuple) or not fetch_item:
+        return None
+    metadata = fetch_item[0]
+    try:
+        parsed = imaplib.Internaldate2tuple(metadata)
+        return time.mktime(parsed) if parsed else None
+    except Exception:
+        return None
+
+
+def find_recent_email_code(client, requested_at):
+    status, data = client.search(None, "ALL")
+    if status != "OK" or not data:
+        return None
+    message_ids = data[0].split()[-30:]
+    for message_id in reversed(message_ids):
+        status, fetched = client.fetch(message_id, "(RFC822 INTERNALDATE)")
+        if status != "OK" or not fetched:
+            continue
+        record = next((item for item in fetched if isinstance(item, tuple)), None)
+        if not record or len(record) < 2:
+            continue
+        received_at = _imap_message_timestamp(record)
+        if received_at is not None and received_at < requested_at - 120:
+            continue
+        code = extract_login_email_code(record[1])
+        if code:
+            return code
+    return None
+
+
+def wait_for_login_email_code(account_email, mailbox_password, requested_at):
+    timeout_seconds = _env_int(["IKUUU_EMAIL_CODE_TIMEOUT_SECONDS"], 120)
+    poll_interval = _env_int(["IKUUU_EMAIL_CODE_POLL_INTERVAL_SECONDS"], 5)
+    deadline = time.time() + max(1, timeout_seconds)
+    client = None
+    try:
+        client = _connect_imap(account_email, mailbox_password)
+        print("  📮 正在等待登录邮箱验证码")
+        while time.time() < deadline:
+            code = find_recent_email_code(client, requested_at)
+            if code:
+                print("  📮 已读取到登录邮箱验证码")
+                return code, None
+            time.sleep(max(1, poll_interval))
+        return None, f"等待邮箱验证码超时（{timeout_seconds}秒）"
+    except Exception as e:
+        return None, f"读取邮箱验证码失败: {e}"
+    finally:
+        if client is not None:
+            try:
+                client.logout()
+            except Exception:
+                pass
 
 
 def send_smtp_mail(subject, content):
@@ -532,6 +700,31 @@ def login_response_authenticated(login_data):
     return login_data.get('ret') == 1 or login_data.get('phase') == 'authenticated'
 
 
+def submit_login_request(session, base_url, body):
+    response = session.post(
+        base_url + '/auth/login',
+        data=body,
+        headers={
+            **HEADERS,
+            'Origin': base_url,
+            'Referer': base_url + '/auth/login',
+        },
+        timeout=20,
+        allow_redirects=True,
+    )
+    print("登录URL:", response.url)
+    print("登录状态码:", response.status_code)
+    print("登录返回:", response.text[:1000])
+    if response.status_code == 405 or '405 Not Allowed' in (response.text or ''):
+        return None, '登录被拒绝(405)'
+    if response.status_code != 200:
+        return None, f"登录失败（状态码{response.status_code}）"
+    try:
+        return response.json(), None
+    except (ValueError, json.JSONDecodeError):
+        return None, '登录响应解析失败'
+
+
 def normalize_url_as_base(value):
     if not value:
         return None
@@ -552,7 +745,11 @@ def get_accounts():
 
     # 方法1: 检查硬编码账户
     if LOGIN_ACCOUNTS and len(LOGIN_ACCOUNTS) > 0:
-        accounts = LOGIN_ACCOUNTS
+        for account in LOGIN_ACCOUNTS:
+            if len(account) == 2:
+                accounts.append((account[0], account[1], ""))
+            elif len(account) >= 3:
+                accounts.append((account[0], account[1], account[2]))
     else:
         # 方法2: 检查环境变量
         account_str = os.getenv('ACCOUNTS')
@@ -561,10 +758,16 @@ def get_accounts():
             for line in account_str.strip().splitlines():
                 line = line.strip()
                 if line and ':' in line:
-                    email, pwd = line.split(':', 1)
-                    accounts.append((email.strip(), pwd.strip()))
+                    fields = line.split(':', 2)
+                    email = fields[0].strip()
+                    password = fields[1].strip()
+                    mailbox_password = fields[2].strip() if len(fields) == 3 else ""
+                    if email and password:
+                        accounts.append((email, password, mailbox_password))
+                    else:
+                        print("⚠️ 忽略一行缺少账号邮箱或 iKuuu 密码的配置")
                 elif line:
-                    print(f"⚠️ 忽略无效账户行: {line}")
+                    print("⚠️ 忽略一行格式无效的账户配置")
         else:
             print("❌ 未找到任何账户配置（配置LOGIN_ACCOUNTS和环境变量均为空）")
             return None
@@ -1158,7 +1361,7 @@ def get_user_info(cookies):
         )
 
 
-def ikuuu_signin(email, password):
+def ikuuu_signin(email, password, mailbox_password=""):
     base_url = f'https://{ikun_host}'
     login_opts = get_login_opts()
 
@@ -1237,60 +1440,57 @@ def ikuuu_signin(email, password):
                 build_err
             )
 
-        login_res = session.post(
-            post_base_url + '/auth/login',
-            data=body,
-            headers={
-                **HEADERS,
-                'Origin': post_base_url,
-                'Referer': post_base_url + '/auth/login',
-            },
-            timeout=20,
-            allow_redirects=True,
+        email_code_requested_at = time.time()
+        login_data, login_error = submit_login_request(
+            session,
+            post_base_url,
+            body,
         )
-        print("登录URL:", login_res.url)
-        print("登录状态码:", login_res.status_code)
-        print("登录返回:", login_res.text[:1000])
-        if (
-                login_res.status_code == 405
-                or
-                '405 Not Allowed' in (
-                login_res.text or ''
-        )
-        ):
+        if login_error:
             return (
                 False,
-                '登录失败：登录被拒绝(405)',
+                f"登录失败：{login_error}",
                 '无法获取',
                 '无法获取',
                 '无法获取',
                 '无法获取'
             )
 
-        if login_res.status_code != 200:
-            return (
-                False,
-                f"登录失败（状态码{login_res.status_code}）",
-                '无法获取',
-                '无法获取',
-                '无法获取',
-                '无法获取'
+        if login_data.get('phase') == 'email_code' and mailbox_password:
+            email_code, email_code_error = wait_for_login_email_code(
+                email,
+                mailbox_password,
+                email_code_requested_at,
             )
+            if email_code_error:
+                return (
+                    False,
+                    f"登录失败：{email_code_error}",
+                    '无法获取',
+                    '无法获取',
+                    '无法获取',
+                    '无法获取'
+                )
 
-        try:
-
-            login_data = login_res.json()
-
-        except json.JSONDecodeError:
-
-            return (
-                False,
-                '响应解析失败',
-                '未知',
-                '未知',
-                '未知',
-                '未知'
+            host = urlparse(post_base_url).netloc
+            login_data, login_error = submit_login_request(
+                session,
+                post_base_url,
+                {
+                    'host': host,
+                    'phase': 'email_code',
+                    'email_code': email_code,
+                },
             )
+            if login_error:
+                return (
+                    False,
+                    f"登录失败：{login_error}",
+                    '无法获取',
+                    '无法获取',
+                    '无法获取',
+                    '无法获取'
+                )
 
         if not login_response_authenticated(login_data):
             print(login_data)
@@ -1299,7 +1499,10 @@ def ikuuu_signin(email, password):
             if phase == 'totp':
                 login_message = '需要二步验证码，请配置 IKUUU_2FA_CODE'
             elif phase == 'email_code':
-                login_message = '站点要求邮箱验证码，自动签到暂不支持该登录阶段'
+                if mailbox_password:
+                    login_message = login_data.get('msg', '邮箱验证码校验失败')
+                else:
+                    login_message = '站点要求邮箱验证码，账号配置中未提供邮箱密码或授权码'
             else:
                 login_message = login_data.get('msg', '未知错误')
 
@@ -1564,11 +1767,12 @@ if __name__ == "__main__":
 
     # ==================== 执行签到 ====================
     results = []
-    for index, (email, pwd) in enumerate(accounts, 1):
+    for index, (email, pwd, mailbox_password) in enumerate(accounts, 1):
         print(f"\n👤 [{index}/{len(accounts)}] 处理账户: {email}")
         success, msg, flow, reset_days, expire_date, balance = ikuuu_signin(
             email,
-            pwd
+            pwd,
+            mailbox_password,
         )
         results.append({
             'email': email,

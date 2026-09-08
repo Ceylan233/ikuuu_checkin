@@ -3,6 +3,7 @@
 ## 作用
 > 每天进行签到，获取额外的流量奖励<br/>
 > 2026年4月ikuuu新增登录请求验证Geetest v4，不使用过验证方式已无法正常签到<br/>
+> 支持登录邮箱验证码：账号配置提供邮箱密码或授权码时，通过 IMAP 自动读取 8 位验证码<br/>
 > 添加cookie缓存登陆，帐密登录后自动记录cookie，有效期内进行签到不消耗token，单账号理论7天最低0.0016$(0.011￥)，单次充值6美元单账号可用27000+天
 
 ---
@@ -31,7 +32,7 @@ Settings → Secrets and variables → Actions
 
 | 参数 | 是否必须 | 说明 |
 |------|----------|------|
-| ACCOUNTS | ⚠ 必须 | ikuuu账号密码 |
+| ACCOUNTS | ⚠ 必须 | 每行 `账号邮箱:iKuuu密码:邮箱密码或授权码`，第三段可省略 |
 | IKUUU_DOMAIN | 可选 | 自定义 iKuuu 域名，支持填写域名或完整 URL |
 | MAIL_USER | 可选 | 发件邮箱 |
 | MAIL_PASS | 可选 | 邮箱应用密码 |
@@ -47,6 +48,13 @@ Settings → Secrets and variables → Actions
 | IKUUU_ANTICAPTCHA_API_KEY | 可选 | AntiCaptcha Api Key |
 | IKUUU_CAPTCHA_TIMEOUT_SECONDS | 可选 | 验证码超时时间(秒) |
 | IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS | 可选 | 轮询间隔(秒) |
+| IKUUU_IMAP_PROVIDER | 可选 | 邮箱类型，默认 auto 自动识别 |
+| IKUUU_IMAP_HOST | 自定义时 | IMAP 服务器 |
+| IKUUU_IMAP_PORT | 可选 | IMAP 端口，默认 993 |
+| IKUUU_IMAP_SECURITY | 可选 | ssl/starttls/plain |
+| IKUUU_IMAP_FOLDER | 可选 | 验证码邮件目录，默认 INBOX |
+| IKUUU_EMAIL_CODE_TIMEOUT_SECONDS | 可选 | 等待邮箱验证码超时，默认 120 秒 |
+| IKUUU_EMAIL_CODE_POLL_INTERVAL_SECONDS | 可选 | 邮箱轮询间隔，默认 5 秒 |
 
 推荐使用 CapSolver 过验证，使用此链接注册后充值可额外获得 6% 充值额度：  
 https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g  
@@ -57,7 +65,16 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 
 ---
 **ACCOUNTS 写法：**  
-账号:密码（使用冒号`:`分隔），有多个账户则配置多行`回车换行`
+每行一个账号，支持以下两种格式：
+
+```text
+账号邮箱:iKuuu密码
+账号邮箱:iKuuu密码:邮箱密码或授权码
+```
+
+第三段可省略。省略时保持原有登录逻辑；站点要求邮箱验证码时会提示缺少邮箱授权码。填写第三段后，脚本会根据账号邮箱自动识别 QQ/Foxmail、163、126、Gmail、Yahoo 或 Outlook 的 IMAP 服务，读取本次登录邮件中的 8 位验证码并继续登录。
+
+QQ、163、126 等邮箱通常应填写邮箱后台生成的授权码，不要填写网页登录密码。请先在邮箱设置中开启 IMAP 服务。GitHub Actions 用户应将完整多行内容放在 `ACCOUNTS` Secret 中；OpenWrt 配置文件权限会设置为 `600`。
 
 **MAIL_TO：**  
 有多个接收通知的账户用逗号 `,` 分割  
@@ -83,10 +100,10 @@ https://dashboard.capsolver.com/passport/register?inviteCode=xtoNMmGLED4g
 从 [Releases](https://github.com/Ceylan233/ikuuu_checkin/releases) 下载 IPK 后安装：
 
 ```sh
-opkg install luci-app-ikuuu-checkin_1.1.1-1_all.ipk
+opkg install luci-app-ikuuu-checkin_1.2.0-1_all.ipk
 ```
 
-安装后进入 LuCI 的“服务 → iKuuu 签到”，可配置多账号、自定义 iKuuu 域名、验证码服务、邮箱、每日定时，也可手动签到或发送测试邮件。域名变更时，在“定时与账号”中填写新域名即可；留空时继续使用自动检测，自定义域名不可用时也会回退到备用域名。
+安装后进入 LuCI 的“服务 → iKuuu 签到”，可配置多账号、自定义 iKuuu 域名、验证码服务、登录邮箱验证、通知邮箱和每日定时，也可手动签到或发送测试邮件。常见邮箱保持“自动识别”即可，自建邮箱可在“邮箱验证”标签页填写 IMAP 参数。
 
 ---
 

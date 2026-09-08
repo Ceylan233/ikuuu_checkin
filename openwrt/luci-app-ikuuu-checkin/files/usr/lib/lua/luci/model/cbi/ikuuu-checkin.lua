@@ -42,6 +42,7 @@ end
 
 s:tab("schedule", translate("定时与账号"))
 s:tab("captcha", translate("验证码设置"))
+s:tab("email_verify", translate("邮箱验证"))
 s:tab("mail", translate("邮件设置"))
 o = s:taboption("schedule", Flag, "enabled", translate("启用每日签到"))
 o.default = 0
@@ -57,7 +58,7 @@ o.rmempty = false
 o = s:taboption("schedule", TextValue, "accounts", translate("签到账号"))
 o.rows = 4
 o.rmempty = false
-o.description = translate("每行一个账号，格式为 邮箱:密码。")
+o.description = translate("每行一个账号，格式为 账号邮箱:iKuuu密码:邮箱密码或授权码。第三段可省略；提供后可自动读取登录邮箱验证码。")
 o = s:taboption("schedule", Value, "custom_domain", translate("自定义 iKuuu 域名"))
 o.placeholder = "ikuuu.example"
 o.description = translate("域名变更时填写，支持 ikuuu.example 或 https://ikuuu.example/；留空则自动检测。自定义域名不可用时仍会尝试备用域名。")
@@ -81,6 +82,40 @@ o.default = 120
 o = s:taboption("captcha", Value, "captcha_poll_interval", translate("轮询间隔（秒）"))
 o.datatype = "range(1,30)"
 o.default = 3
+
+o = s:taboption("email_verify", ListValue, "imap_provider", translate("邮箱类型"))
+o:value("auto", translate("自动识别"))
+o:value("163", "163 邮箱")
+o:value("126", "126 邮箱")
+o:value("qq", "QQ / Foxmail")
+o:value("gmail", "Gmail")
+o:value("yahoo", "Yahoo Mail")
+o:value("outlook", "Outlook / Hotmail")
+o:value("custom", translate("自定义 IMAP"))
+o.default = "auto"
+o.rmempty = false
+o.description = translate("邮箱密码或授权码填写在账号配置的第三段。推荐保持自动识别。")
+o = s:taboption("email_verify", Value, "imap_host", translate("IMAP 服务器"))
+o:depends("imap_provider", "custom")
+o = s:taboption("email_verify", Value, "imap_port", translate("IMAP 端口"))
+o.datatype = "port"
+o.default = 993
+o:depends("imap_provider", "custom")
+o = s:taboption("email_verify", ListValue, "imap_security", translate("IMAP 加密"))
+o:value("ssl", "SSL/TLS")
+o:value("starttls", "STARTTLS")
+o:value("plain", translate("不加密"))
+o.default = "ssl"
+o:depends("imap_provider", "custom")
+o = s:taboption("email_verify", Value, "imap_folder", translate("邮箱目录"))
+o.default = "INBOX"
+o.rmempty = false
+o = s:taboption("email_verify", Value, "email_code_timeout", translate("等待验证码超时（秒）"))
+o.datatype = "range(30,600)"
+o.default = 120
+o = s:taboption("email_verify", Value, "email_code_poll_interval", translate("邮箱轮询间隔（秒）"))
+o.datatype = "range(1,30)"
+o.default = 5
 
 o = s:taboption("mail", ListValue, "mail_provider", translate("发件邮箱类型"))
 o:value("163", "163 邮箱")
