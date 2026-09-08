@@ -134,6 +134,9 @@ export IKUUU_CAPTCHA_POLL_INTERVAL_SECONDS="3"
 ## 4. 最后，可以到Run sign查看签到情况，同时也会也会将签到详情推送。
 
 ## 运行截图
+<img width="750" height="555" alt="image" src="https://github.com/user-attachments/assets/cc8eef80-286b-4d4d-9ddb-059313780cc9" />
+<img width="565" height="564" alt="image" src="https://github.com/user-attachments/assets/4f45b50a-4fb0-41b1-89fd-97850e2c9db6" />
+
 
 **未添加过验证api：** <br/><br/>
 <img src="https://github.com/user-attachments/assets/9103aa0a-d4e9-4f60-9244-0d615386c0d8" width="400"><br/>
