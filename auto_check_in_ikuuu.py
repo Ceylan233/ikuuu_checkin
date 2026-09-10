@@ -1173,22 +1173,45 @@ def validate_cookie(session, base_url):
 
 def do_checkin_with_session(session, base_url):
     print("  [签到] 正在读取当前剩余流量", flush=True)
-    flow_value, flow_unit = get_remaining_flow(session.cookies)
+    flow_value, flow_unit = get_remaining_flow(session, base_url)
 
-    print("  [签到] 正在提交签到请求", flush=True)
-    checkin_res = session.post(
-        base_url + '/user/checkin',
-        headers=HEADERS,
-        timeout=20,
-        allow_redirects=True,
-    )
-    if checkin_res.status_code != 200:
-        return False, f"签到失败（状态码{checkin_res.status_code}）", flow_value, flow_unit
+    checkin_data = None
+    last_error = "签到响应解析失败"
+    for attempt in range(1, 4):
+        print(f"  [签到] 正在提交签到请求（第 {attempt}/3 次）", flush=True)
+        checkin_res = session.post(
+            base_url + '/user/checkin',
+            headers={
+                **HEADERS,
+                'Origin': base_url,
+                'Referer': base_url + '/user',
+            },
+            timeout=20,
+            allow_redirects=True,
+        )
+        final_path = urlparse(checkin_res.url).path or '/'
+        if checkin_res.status_code != 200:
+            last_error = f"签到失败（状态码{checkin_res.status_code}）"
+        elif final_path.startswith('/auth/login'):
+            last_error = "签到请求被重定向到登录页"
+        else:
+            try:
+                payload = checkin_res.json()
+                if isinstance(payload, dict):
+                    checkin_data = payload
+                    break
+                last_error = "签到响应 JSON 格式异常"
+            except ValueError:
+                content_type = checkin_res.headers.get('Content-Type', '').split(';')[0]
+                last_error = f"签到响应不是 JSON（页面 {final_path}，类型 {content_type or '未知'}）"
 
-    try:
-        checkin_data = checkin_res.json()
-    except json.JSONDecodeError:
-        return False, '响应解析失败', flow_value, flow_unit
+        print(f"  [签到] {last_error}", flush=True)
+        if attempt < 3:
+            print("  [签到] 等待 2 秒后重试", flush=True)
+            time.sleep(2)
+
+    if checkin_data is None:
+        return False, last_error, flow_value, flow_unit
 
     if checkin_data.get('ret') == 1:
         print("  [签到] 签到请求成功", flush=True)
@@ -1202,12 +1225,19 @@ def do_checkin_with_session(session, base_url):
     return False, f"签到失败：{checkin_msg}", flow_value, flow_unit
 
 
-def get_remaining_flow(cookies):
+def get_remaining_flow(session, base_url):
     """获取用户剩余流量信息"""
-    user_url = f'https://{ikun_host}/user'
+    user_url = base_url.rstrip('/') + '/user'
     try:
         # 获取用户页面
-        user_page = requests.get(user_url, cookies=cookies, headers={"User-Agent": USER_AGENT}, timeout=20)
+        user_page = session.get(
+            user_url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=20,
+            allow_redirects=True,
+        )
+        if urlparse(user_page.url).path.startswith('/auth/login'):
+            return "登录已失效", ""
         if user_page.status_code != 200:
             return "获取流量失败", "状态码: " + str(user_page.status_code)
 
@@ -1246,7 +1276,7 @@ def get_remaining_flow(cookies):
         return "流量获取异常", str(e)
 
 
-def get_user_info(cookies):
+def get_user_info(session, base_url):
     flow = "未知"
     reset_days = "未知"
     expire_date = "未知"
@@ -1255,11 +1285,11 @@ def get_user_info(cookies):
 
     try:
         print("  [账户] 正在读取账户信息", flush=True)
-        user_page = requests.get(
-            f"https://{ikun_host}/user",
-            cookies=cookies,
+        user_page = session.get(
+            base_url.rstrip('/') + "/user",
             headers={"User-Agent": USER_AGENT},
-            timeout=20
+            timeout=20,
+            allow_redirects=True,
         )
 
         if user_page.status_code == 200:
@@ -1346,11 +1376,11 @@ def get_user_info(cookies):
                                     counter.get_text(strip=True)
                             )
 
-        code_page = requests.get(
-            f"https://{ikun_host}/user/code",
-            cookies=cookies,
+        code_page = session.get(
+            base_url.rstrip('/') + "/user/code",
             headers={"User-Agent": USER_AGENT},
-            timeout=20
+            timeout=20,
+            allow_redirects=True,
         )
 
         if code_page.status_code == 200:
@@ -1465,7 +1495,8 @@ def ikuuu_signin(email, password, mailbox_password=""):
 
                 flow, reset_days, expire_date, balance = \
                     get_user_info(
-                        session.cookies
+                        session,
+                        base_url,
                     )
 
                 if success:
@@ -1631,7 +1662,8 @@ def ikuuu_signin(email, password, mailbox_password=""):
 
         flow, reset_days, expire_date, balance = \
             get_user_info(
-                session.cookies
+                session,
+                post_base_url,
             )
 
         if success:
