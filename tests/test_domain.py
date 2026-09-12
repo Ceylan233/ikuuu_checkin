@@ -1,4 +1,5 @@
 import importlib.util
+import base64
 import os
 import unittest
 from unittest.mock import patch
@@ -89,6 +90,40 @@ class DomainTests(unittest.TestCase):
         self.assertTrue(module.login_response_authenticated({"phase": "authenticated"}))
         self.assertTrue(module.login_response_authenticated({"ret": 1}))
         self.assertFalse(module.login_response_authenticated({"phase": "password", "ret": 0}))
+
+    def test_domain_announcement_is_not_a_login_page(self):
+        module = load_module()
+        announcement = "<html><title>iKuuuVPN最新域名</title><h3>ikuuu.top</h3></html>"
+
+        self.assertFalse(module.is_login_page_content(announcement))
+
+    def test_wrapped_real_login_page_is_detected(self):
+        module = load_module()
+        login_html = (
+            '<form><input name="email"><input name="password"></form>'
+            '<script>function submitLogin(){$.post("/auth/login");}</script>'
+        )
+        encoded = base64.b64encode(login_html.encode()).decode()
+        wrapped = f'<script>var originBody = "{encoded}";</script>'
+
+        self.assertTrue(module.is_login_page_content(wrapped))
+
+    def test_host_reachable_requires_real_login_page(self):
+        module = load_module()
+        response = mock_response = type(
+            "Response",
+            (),
+            {
+                "status_code": 200,
+                "text": "<html><title>最新域名</title></html>",
+            },
+        )()
+
+        with patch.object(module.requests, "get", return_value=response):
+            with patch("builtins.print"):
+                self.assertFalse(module.test_host_reachable("old.example"))
+
+        self.assertEqual(mock_response.status_code, 200)
 
 
 if __name__ == "__main__":

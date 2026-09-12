@@ -100,7 +100,7 @@ QQ、163、126 等邮箱通常应填写邮箱后台生成的授权码，不要�
 从 [Releases](https://github.com/Ceylan233/ikuuu_checkin/releases) 下载 IPK 后安装：
 
 ```sh
-opkg install luci-app-ikuuu-checkin_1.2.3-1_all.ipk
+opkg install luci-app-ikuuu-checkin_1.2.4-1_all.ipk
 ```
 
 安装后进入 LuCI 的“服务 → iKuuu 签到”，可配置多账号、自定义 iKuuu 域名、验证码服务、登录邮箱验证、通知邮箱和每日定时，也可手动签到或发送测试邮件。常见邮箱保持“自动识别”即可，自建邮箱可在“邮箱验证”标签页填写 IMAP 参数。

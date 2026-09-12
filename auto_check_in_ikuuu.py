@@ -93,10 +93,10 @@ def normalize_ikuuu_host(value):
 
 
 # 默认域名与用户自定义域名
-default_ikun_host = "ikuuu.fyi"
+default_ikun_host = "ikuuu.top"
 custom_ikun_host = normalize_ikuuu_host(os.getenv("IKUUU_DOMAIN", ""))
 ikun_host = custom_ikun_host or default_ikun_host
-backup_hosts = ["ikuuu.one", "ikuuu.nl", "ikuuu.de"]  # 备用域名列表
+backup_hosts = ["ikuuu.top", "ikuuu.pw", "ikuuu.one", "ikuuu.nl", "ikuuu.de"]
 
 # 统一的User-Agent
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
@@ -1004,18 +1004,32 @@ def update_self_host(new_host):
         return False
 
 
+def is_login_page_content(content):
+    html = extract_origin_body(content or "") or (content or "")
+    has_email = bool(re.search(r'name=["\']email["\']', html, re.I))
+    has_password = bool(re.search(r'name=["\']password["\']', html, re.I))
+    has_login_handler = '/auth/login' in html and (
+        'submitLogin' in html or '<form' in html.lower()
+    )
+    return has_email and has_password and has_login_handler
+
+
 def test_host_reachable(host):
     """
     测试域名是否可达
     """
     try:
         print(f"🔗 测试域名: {host}")
-        response = requests.get(f"https://{host}/",
+        response = requests.get(f"https://{host}/auth/login",
                                 headers={"User-Agent": USER_AGENT},
-                                timeout=10)
-        if response.status_code == 200:
-            print(f"✅ 域名 {host} 可用")
+                                timeout=10,
+                                allow_redirects=True)
+        if response.status_code == 200 and is_login_page_content(response.text):
+            print(f"✅ 域名 {host} 登录页可用")
             return True
+        if response.status_code == 200:
+            print(f"⚠️ 域名 {host} 返回域名公告页，不是登录页")
+            return False
         else:
             print(f"⚠️ 域名 {host} 返回状态码: {response.status_code}")
             return False
@@ -1037,7 +1051,15 @@ def find_working_domain():
     if test_host_reachable(ikun_host):
         return ikun_host
 
-    # 2. 从当前域名和备用域名中获取新域名信息
+    # 2. 优先测试已知备用域名，避免旧域名公告页被误判为登录站点。
+    print("🔄 测试备用域名列表...")
+    for host in backup_hosts:
+        if host != ikun_host and test_host_reachable(host):
+            print(f"🎉 备用域名可用: {host}")
+            ikun_host = host
+            return host
+
+    # 3. 从当前域名和备用域名中获取新域名信息
     all_domains_to_check = list(dict.fromkeys([ikun_host] + backup_hosts))
     discovered_domains = []
 
@@ -1049,7 +1071,7 @@ def find_working_domain():
     discovered_domains = list(dict.fromkeys(discovered_domains))
     print(f"🔍 发现的域名: {discovered_domains}")
 
-    # 3. 测试发现的域名
+    # 4. 测试发现的域名
     for domain in discovered_domains:
         if domain != ikun_host and test_host_reachable(domain):
             print(f"🎉 找到可用域名: {domain}")
@@ -1057,14 +1079,6 @@ def find_working_domain():
             # 尝试更新脚本
             update_self_host(domain)
             return domain
-
-    # 4. 测试备用域名
-    print("🔄 测试备用域名列表...")
-    for host in backup_hosts:
-        if host != ikun_host and test_host_reachable(host):
-            print(f"🎉 备用域名可用: {host}")
-            ikun_host = host
-            return host
 
     # 5. 都不可用
     print("❌ 所有域名均不可用")

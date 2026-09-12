@@ -23,8 +23,12 @@ end
 o = s:taboption("status", Button, "_run", translate("立即签到"))
 o.inputstyle = "apply"
 function o.write()
-	sys.call("LOG=/tmp/ikuuu-checkin.log; : > \"$LOG\"; printf '%s [手动任务] 已启动签到任务\\n' \"$(date '+%Y-%m-%d %H:%M:%S')\" >> \"$LOG\"; /usr/libexec/ikuuu-checkin/run run >> \"$LOG\" 2>&1 &")
-	m.message = translate("签到任务已启动。")
+	if sys.call("test -d /tmp/ikuuu-checkin.lock") == 0 then
+		m.message = translate("已有签到任务正在运行，请查看实时日志。")
+	else
+		sys.call("LOG=/tmp/ikuuu-checkin.log; : > \"$LOG\"; printf '%s [手动任务] 已启动签到任务\\n' \"$(date '+%Y-%m-%d %H:%M:%S')\" >> \"$LOG\"; /usr/libexec/ikuuu-checkin/run run >> \"$LOG\" 2>&1 &")
+		m.message = translate("签到任务已启动。")
+	end
 end
 
 o = s:taboption("status", Button, "_test", translate("发送测试邮件"))

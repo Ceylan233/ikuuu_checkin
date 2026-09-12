@@ -72,12 +72,19 @@ fi
 mkdir -p /etc/ikuuu-checkin
 export PYTHONUNBUFFERED=1
 
+LOCK_DIR=/tmp/ikuuu-checkin.lock
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+	echo "[$(date '+%Y-%m-%d %H:%M:%S')] 已有签到任务正在运行，本次请求已跳过"
+	exit 3
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null' EXIT INT TERM
+
 case "${1:-run}" in
 	run)
-		exec /usr/bin/python3 -u /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py
+		/usr/bin/python3 -u /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py
 		;;
 	test)
-		exec /usr/bin/python3 -u /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py --send-test
+		/usr/bin/python3 -u /usr/libexec/ikuuu-checkin/auto_check_in_ikuuu.py --send-test
 		;;
 	*)
 		echo "Usage: $0 {run|test}" >&2
